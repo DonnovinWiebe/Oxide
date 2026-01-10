@@ -176,7 +176,8 @@ impl EditProcessor for BichromaticEdit {
 }
 
 pub mod oxidation {
-    use image::Rgba;
+    use std::cmp::min;
+    use image::{Pixel, Rgba};
 
     pub fn is_hex(code: String) -> bool {
         let code = code.trim_start_matches('#');
@@ -268,5 +269,31 @@ pub mod oxidation {
 
         // returns the spectrum
         spectrum
+    }
+
+    pub fn get_closest_color(pallet: &Vec<Rgba<u8>>, color: Rgba<u8>) -> Rgba<u8> {
+        if pallet.is_empty() { return color; }
+
+        let mut closest_color_index = 0;
+        let mut closest_color_distance = f32::MAX;
+
+        for i in 0..pallet.len() {
+            let distance = get_distance(color, pallet[i]);
+            if distance < closest_color_distance {
+                closest_color_index = i;
+                closest_color_distance = distance;
+            }
+        }
+
+        pallet[closest_color_index]
+    }
+
+    pub fn get_distance(color_1: Rgba<u8>, color_2: Rgba<u8>) -> f32 {
+        let r_dist = (color_1[0] as f32 - color_2[0] as f32).abs().min(color_1[0] as f32 + (color_2[0] as f32 - 255.0).abs());
+        let g_dist = (color_1[1] as f32 - color_2[1] as f32).abs().min(color_1[1] as f32 + (color_2[1] as f32 - 255.0).abs());
+        let b_dist = (color_1[2] as f32 - color_2[2] as f32).abs().min(color_1[2] as f32 + (color_2[2] as f32 - 255.0).abs());
+        let a_dist = (color_1[3] as f32 - color_2[3] as f32).abs().min(color_1[3] as f32 + (color_2[3] as f32 - 255.0).abs());
+
+        (r_dist.powi(2) + g_dist.powi(2) + b_dist.powi(2) + a_dist.powi(2)).sqrt()
     }
 }
