@@ -212,9 +212,61 @@ pub mod oxidation {
         Some(Rgba([r, g, b, a]))
     }
 
-    pub fn get_swath(color_1: Rgba<u8>, color_2: Rgba<u8>) -> Vec<Rgba<u8>> {
-        let mut swath = Vec::new();
+    pub fn get_spectrum(color: Rgba<u8>, steps: usize) -> Vec<Rgba<u8>> {
+        // the interpolation information
+        let mut base_color = (color[0] as f64, color[1] as f64, color[2] as f64, color[3] as f64);
+        let (r_c, g_c, b_c, a_c) = &mut base_color;
 
-        swath
+        let white = (255.0, 255.0, 255.0, 255.0);
+        let (r_w, g_w, b_w, a_w) = &white;
+
+        let black = (0.0, 0.0, 0.0, 255.0);
+        let (r_b, g_b, b_b, a_b) = &black;
+
+        let white_increment = (r_w - *r_c, g_w - *g_c, b_w - *b_c, a_w - *a_c);
+        let (r_wi, g_wi, b_wi, a_wi) = &white_increment;
+
+        let black_increment = (r_b - *r_c, g_b - *g_c, b_b - *b_c, a_b - *a_c);
+        let (r_bi, g_bi, b_bi, a_bi) = &black_increment;
+
+
+        // the interpolated spectrum
+        let mut interpolated_spectrum = Vec::new();
+        interpolated_spectrum.push((r_c.clone(), g_c.clone(), b_c.clone(), a_c.clone()));
+
+
+        // builds the interpolation spectrum from the base color to white
+        let (mut r, mut g, mut b, mut a) = base_color.clone();
+        for _ in 0..steps {
+            r += r_wi;
+            g += g_wi;
+            b += b_wi;
+            a += a_wi;
+            interpolated_spectrum.push((r.clone(), g.clone(), b.clone(), a.clone()));
+        }
+
+
+        // builds the interpolation spectrum from the base color to black
+        let (mut r, mut g, mut b, mut a) = base_color.clone();
+        for _ in 0..steps {
+            r += r_bi;
+            g += g_bi;
+            b += b_bi;
+            a += a_bi;
+            interpolated_spectrum.push((r.clone(), g.clone(), b.clone(), a.clone()));
+        }
+
+
+        // turns the interpolation spectrum to an Rgba spectrum
+        let mut spectrum = Vec::new();
+        for interpolated_color in interpolated_spectrum.iter_mut() {
+            let (r_i, g_i, b_i, a_i) = interpolated_color;
+            let new_color = Rgba([r_i.round() as u8, g_i.round() as u8, b_i.round() as u8, a_i.round() as u8]);
+            spectrum.push(new_color);
+        }
+
+
+        // returns the spectrum
+        spectrum
     }
 }
