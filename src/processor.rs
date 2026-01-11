@@ -12,7 +12,14 @@ pub enum EditTypes {
     Bichromatic,
 }
 impl EditTypes {
-    pub fn get_steps(&self) -> Vec<EditStep> {
+    fn name(&self) -> String {
+        match self {
+            EditTypes::Monochromatic => "Monochromatic".to_string(),
+            EditTypes::Bichromatic => "Bichromatic".to_string(),
+        }
+    }
+
+    fn get_steps(&self) -> Vec<EditStep> {
         match self {
             EditTypes::Monochromatic => vec![
                 EditStep::new(StepTypes::Color, "Base Color (HEX)".to_string()),
@@ -28,7 +35,7 @@ impl EditTypes {
 
 
 
-struct EditPath {
+pub struct EditPath {
     pub edit_type: EditTypes,
     pub steps: Vec<EditStep>,
     pub current_step: usize,
@@ -89,7 +96,10 @@ impl EditStep {
 pub trait EditProcessor {
     fn get_step_input(&self) -> String;
     fn update_step_input(&mut self, new_input: String, path: &mut EditPath);
+    fn update_value(&mut self);
     fn finish_step(&mut self, base_image: &ImageBuffer<Rgba<u8>, Vec<u8>>, path: &mut EditPath) -> Option<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+        // updates the edit processor value
+        self.update_value();
         // checks if the path is now complete
         let is_complete = path.finish_step();
 
@@ -109,6 +119,8 @@ pub trait EditProcessor {
         None
     }
 
+    fn tag(&self) -> String;
+
     fn process(&self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>, Box<dyn Error>>;
 }
 
@@ -117,12 +129,13 @@ pub trait EditProcessor {
 pub struct MonochromaticEdit {
     pub edit_type: EditTypes,
     pub base_image: ImageBuffer<Rgba<u8>, Vec<u8>>,
+    base_color_hex: String,
     pub base_color: Rgba<u8>,
     pub path: EditPath,
 }
 impl MonochromaticEdit {
     pub fn new(edit_type: EditTypes, base_image: ImageBuffer<Rgba<u8>, Vec<u8>>) -> MonochromaticEdit {
-        MonochromaticEdit { edit_type, base_image, base_color: Rgba([0, 0, 0, 255]), path: EditPath::new(EditTypes::Monochromatic) }
+        MonochromaticEdit { edit_type, base_image, base_color: Rgba([0, 0, 0, 255]), base_color_hex: "none".to_string(), path: EditPath::new(EditTypes::Monochromatic) }
     }
 }
 impl EditProcessor for MonochromaticEdit {
@@ -134,12 +147,20 @@ impl EditProcessor for MonochromaticEdit {
         self.path.update_input(new_input);
     }
 
+    fn update_value(&mut self) {
+
+    }
+
     fn process(&self) -> Result<(ImageBuffer<Rgba<u8>, Vec<u8>>), Box<dyn Error>> {
         let mut new_img = self.base_image.clone();
 
         // todo implement
 
         Ok(new_img)
+    }
+
+    fn tag(&self) -> String {
+        format!("{} - {}", self.edit_type.name(), self.base_color_hex.clone())
     }
 }
 
@@ -148,13 +169,15 @@ impl EditProcessor for MonochromaticEdit {
 pub struct BichromaticEdit {
     pub edit_type: EditTypes,
     pub base_image: ImageBuffer<Rgba<u8>, Vec<u8>>,
+    base_color_1_hex: String,
+    base_color_2_hex: String,
     pub base_color_1: Rgba<u8>,
     pub base_color_2: Rgba<u8>,
     pub path: EditPath,
 }
 impl BichromaticEdit {
     pub fn new(edit_type: EditTypes, base_image: ImageBuffer<Rgba<u8>, Vec<u8>>) -> BichromaticEdit {
-        BichromaticEdit { edit_type, base_image, base_color_1: Rgba([0, 0, 0, 255]), base_color_2: Rgba([0, 0, 0, 255]), path: EditPath::new(EditTypes::Bichromatic) }
+        BichromaticEdit { edit_type, base_image, base_color_1_hex: "none".to_string(), base_color_2_hex: "none".to_string(), base_color_1: Rgba([0, 0, 0, 255]), base_color_2: Rgba([0, 0, 0, 255]), path: EditPath::new(EditTypes::Bichromatic) }
     }
 }
 impl EditProcessor for BichromaticEdit {
@@ -172,6 +195,10 @@ impl EditProcessor for BichromaticEdit {
         // todo implement
 
         Ok(new_img)
+    }
+
+    fn tag(&self) -> String {
+        format!("{} - {} {}", self.edit_type.name(), self.base_color_1_hex.clone(), self.base_color_2_hex.clone())
     }
 }
 
@@ -289,10 +316,10 @@ pub mod oxidation {
     }
 
     pub fn get_distance(color_1: Rgba<u8>, color_2: Rgba<u8>) -> f32 {
-        let r_dist = (color_1[0] as f32 - color_2[0] as f32).abs().min(color_1[0] as f32 + (color_2[0] as f32 - 255.0).abs());
-        let g_dist = (color_1[1] as f32 - color_2[1] as f32).abs().min(color_1[1] as f32 + (color_2[1] as f32 - 255.0).abs());
-        let b_dist = (color_1[2] as f32 - color_2[2] as f32).abs().min(color_1[2] as f32 + (color_2[2] as f32 - 255.0).abs());
-        let a_dist = (color_1[3] as f32 - color_2[3] as f32).abs().min(color_1[3] as f32 + (color_2[3] as f32 - 255.0).abs());
+        let r_dist = (color_1[0] as f32 - color_2[0] as f32).abs();
+        let g_dist = (color_1[1] as f32 - color_2[1] as f32).abs();
+        let b_dist = (color_1[2] as f32 - color_2[2] as f32).abs();
+        let a_dist = (color_1[3] as f32 - color_2[3] as f32).abs();
 
         (r_dist.powi(2) + g_dist.powi(2) + b_dist.powi(2) + a_dist.powi(2)).sqrt()
     }
