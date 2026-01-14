@@ -39,7 +39,7 @@ impl ProcessingGuide {
     pub fn get_current_label(&self) -> String {
         self.steps[self.current_step].label.clone()
     }
-    
+
     /// Returns the input of the current step.
     pub fn get_current_input(&self) -> String {
         self.steps[self.current_step].input.clone()
@@ -59,10 +59,10 @@ impl ProcessingGuide {
     pub fn finish_step(&mut self) -> bool {
         // exits early and returns false if the input is invalid
         if !self.is_current_input_valid() { return false; }
-        
+
         // returns true if the guide is finished
         if self.current_step >= self.steps.len() - 1 { return true; }
-        
+
         // advances the guide to the next step
         self.current_step += 1;
         false
