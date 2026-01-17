@@ -40,9 +40,9 @@ pub fn render(frame: &mut Frame, app: &App) {
 
         Pages::SelectingImageSource => {
             let body = Paragraph::new(vec![
-                Line::raw(format!("Found {} images", app.source_images.len())),
+                Line::raw(format!("Found {} images", app.source_image_paths.len())),
                 Line::raw(format!("In: {}", app.source_directory.to_string_lossy())),
-                Line::raw(format!("Selected image: {}", app.print_selected_images())),
+                Line::raw(format!("Selected image: {}", app.print_selected_image_path())),
             ]);
             frame.render_widget(body, leaflets[1]);
         }
