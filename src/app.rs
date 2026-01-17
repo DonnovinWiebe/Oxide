@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use ratatui::crossterm::event;
 use ratatui::crossterm::event::Event;
 use ratatui::prelude::*;
@@ -6,6 +6,7 @@ use crate::processor;
 use crate::ui::{render, Instruction};
 use std::io::{Error, Result};
 use std::string::String;
+use image::{ImageBuffer, Rgba};
 use ratatui::backend::Backend;
 use ratatui::Terminal;
 use crate::processor::{BichromaticEdit, EditProcessor, MonochromaticEdit, Processors};
@@ -28,34 +29,32 @@ pub struct App {
     pub current_page: Pages,
     // image selection
     pub source_directory: PathBuf,
-    pub source_images: Vec<PathBuf>,
-    output_directory: PathBuf,
-    current_image_selection: usize, // 0-sources.len() - 1 = single index; sources.len() = all sources
-    selected_images: Vec<PathBuf>,
+    pub source_image_paths: Vec<PathBuf>,
+    pub output_directory: PathBuf,
+    current_image_path_selection: usize, // by index
+    selected_image_path: Option<PathBuf>,
     // processor selection
     pub current_processor_selection: usize,
-    pub processor: Box<dyn EditProcessor>,
-
+    pub selected_processor: Option<Box<dyn EditProcessor>>,
+    // new image
+    pub new_image: Option<ImageBuffer<Rgba<u8>, Vec<u8>>>,
 }
 
 impl App {
-    pub fn new(source_directory: PathBuf, output_directory: PathBuf, source_images: Vec<PathBuf>) -> App {
-        if source_images.is_empty() { panic!("No images provided!"); }
-        
-        let source_path = source_images[0].clone();
-        
+    pub fn new(source_directory: PathBuf, output_directory: PathBuf, source_image_paths: Vec<PathBuf>) -> App {
         let mut app = App {
             current_page: Pages::Launching,
             source_directory,
-            source_images,
+            source_image_paths,
             output_directory,
-            current_image_selection: 0,
-            selected_images: Vec::new(),
+            current_image_path_selection: 0,
+            selected_image_path: None,
             current_processor_selection: 0,
-            processor: Box::new(MonochromaticEdit::new(source_path)),
+            selected_processor: None,
+            new_image: None,
         };
 
-        app.update_selected_images();
+        app.update_selected_image_path();
         app
     }
 
@@ -69,83 +68,35 @@ impl App {
         }
     }
 
-    pub fn update_selected_images(&mut self) {
-        // clears the selected images
-        self.selected_images.clear();
-
-        // adds the current image
-        if self.current_image_selection < self.source_images.len() {
-            self.selected_images.push(self.source_images[self.current_image_selection].clone());
+    fn update_selected_image_path(&mut self) {
+        if self.source_image_paths.is_empty() {
+            self.selected_image_path = None;
         }
-
-        // adds all images
         else {
-            self.selected_images.extend(self.source_images.iter().cloned());
+            self.selected_image_path = Some(self.source_image_paths[self.current_image_path_selection].clone());
         }
-        
-        // updates the processor
-        let base_image;
-        if let Err(_) = image::open(self.selected_images[0].clone()) { base_image = None; }
-        else { base_image = Some(image::open(self.selected_images[0].clone()).unwrap().to_rgba8()); }
-        self.processor.update_base_image(base_image);
     }
 
-    pub fn select_next_source_image(&mut self) {
-        // resets if the source is empty
-        if self.source_images.is_empty() {
-            self.current_image_selection = 0;
-            self.selected_images.clear();
-            return;
+    pub fn select_next_source_image_path(&mut self) {
+        if self.current_image_path_selection >= self.source_image_paths.len() - 1 {
+            self.current_image_path_selection = 0;
         }
-
-        // selects the next image (selects each image by index, then all at len(), then wraps to 0)
-        if self.current_image_selection >= self.source_images.len() {
-            self.current_image_selection = 0;
-        } else {
-            self.current_image_selection += 1;
+        else {
+            self.current_image_path_selection += 1;
         }
-
-        // updates the selected images
-        self.update_selected_images();
     }
 
-    pub fn select_previous_source_image(&mut self) {
-        // resets if the source is empty
-        if self.source_images.is_empty() {
-            self.current_image_selection = 0;
-            self.selected_images.clear();
-            return;
+    pub fn select_previous_source_image_path(&mut self) {
+        if self.current_image_path_selection == 0 {
+            self.current_image_path_selection = self.source_image_paths.len() - 1;
         }
-
-        // selects the previous image (selects each image by index, then wraps to all at len(), then back through the indices backwards)
-        if self.current_image_selection == 0 {
-            self.current_image_selection = self.source_images.len();
-        } else {
-            self.current_image_selection -= 1;
+        else {
+            self.current_image_path_selection -= 1;
         }
-
-        // updates the selected images
-        self.update_selected_images();
     }
 
-    pub fn print_selected_images(&self) -> String {
-        // returns none if no images are selected (no local images or error case)
-        if self.selected_images.is_empty() {
-            return "None".to_string();
-        }
-
-        // returns all if all images are selected
-        if self.current_image_selection >= self.source_images.len() {
-            return "All".to_string();
-        }
-
-        // returns error if more than one image is selected
-        if self.selected_images.len() > 1 {
-            return "Error selecting single image".to_string();
-        }
-
-        // returns the selected image
-        self.selected_images[0].to_string_lossy().to_string()
+    pub fn print_selected_image_path(&self) -> String {
+        self.source_image_paths[self.current_image_path_selection].to_string_lossy().to_string()
     }
 
     pub fn select_next_processor(&mut self) {
@@ -154,6 +105,8 @@ impl App {
         } else {
             self.current_processor_selection += 1;
         }
+
+        self.update_selected_image_path();
     }
 
     pub fn select_previous_processor(&mut self) {
@@ -162,14 +115,16 @@ impl App {
         } else {
             self.current_processor_selection -= 1;
         }
+
+        self.update_selected_image_path();
     }
 
     pub fn reset(&mut self) {
-        self.current_page = Pages::SelectingImageSource;
-        self.source_images = Vec::new();
-        self.current_image_selection = 0;
-        self.selected_images = Vec::new();
+        self.current_page = Pages::Launching;
+        self.current_image_path_selection = 0;
+        self.selected_image_path = None;
         self.current_processor_selection = 0;
+        self.selected_processor = None;
     }
 
 
@@ -200,12 +155,16 @@ impl App {
 
                     Pages::SelectingImageSource => {
                         if key.code == Instruction::select_next().keybind {
-                            self.select_next_source_image();
+                            self.select_next_source_image_path();
                         }
                         if key.code == Instruction::select_previous().keybind {
-                            self.select_previous_source_image();
+                            self.select_previous_source_image_path();
                         }
                         if key.code == Instruction::confirm_instruction().keybind {
+                            // cannot continue if there are no images to edit, and thus preventing downstream unwrap errors
+                            // from here self.selected_image_path is guaranteed to be set
+                            if self.source_image_paths.is_empty() { continue; }
+
                             self.current_page = Pages::SelectingProcessingType;
                         }
                         if key.code == Instruction::reset_instruction().keybind {
@@ -224,13 +183,14 @@ impl App {
                             self.select_previous_processor();
                         }
                         if key.code == Instruction::confirm_instruction().keybind {
+                            // from here self.selected_processor is guaranteed to be set
                             let selected_processor = Processors::get_processor(self.current_processor_selection);
                             match selected_processor {
                                 Processors::Monochromatic => {
-                                    self.processor = Box::new(MonochromaticEdit::new(self.selected_images[0].clone()));
+                                    self.selected_processor = Some(Box::new(MonochromaticEdit::new(self.selected_image_path.clone().unwrap())));
                                 }
                                 Processors::Bichromatic => {
-                                    self.processor = Box::new(BichromaticEdit::new(self.selected_images[0].clone()));
+                                    self.selected_processor = Some(Box::new(BichromaticEdit::new(self.selected_image_path.clone().unwrap())));
                                 }
                             }
                             
@@ -245,29 +205,38 @@ impl App {
                     }
 
                     Pages::Preprocessing => {
-                        if key.code == Instruction::confirm_instruction().keybind {
-                            let finished = self.processor.finish_current_step();
-                            if finished {
-                                let result = self.processor.try_process();
-                                if result.is_ok() {
-                                    let source_directory = self.source_images[0].clone();
+                        // checks if processor is valid
+                        if let Some(processor) = &mut self.selected_processor {
+                            // trying to finish step
+                            if key.code == Instruction::confirm_instruction().keybind {
+                                processor.try_finish_current_step();
+                                processor.try_populate();
+                                self.new_image = processor.try_process();
+
+                                if let Some(new_image) = self.new_image.as_ref() {
+                                    let source_directory = self.selected_image_path.clone().unwrap();
                                     let output_directory = self.output_directory.clone();
                                     let filename = source_directory.file_name().unwrap();
                                     let output_path = output_directory.join(filename);
-                                    result.unwrap().save(&output_path).expect("Could not save image!");
-                                    
+                                    new_image.save(&output_path).expect("Could not save image!");
+
                                     self.current_page = Pages::Finished;
                                 }
                                 else { continue; }
                             }
-                            else { continue; }
+
+                            // updating the current guide step input
+                            let new_input = term_tools::keypad(&processor.get_current_step_input(), key);
+                            processor.update_current_step_input(new_input);
+
+                            // trying to reset
+                            if key.code == Instruction::reset_instruction().keybind {
+                                self.reset();
+                            }
                         }
-                        
-                        if key.code == Instruction::reset_instruction().keybind {
-                            self.reset();
-                        }
-                        
-                        self.processor.update_current_step_input(term_tools::keypad(&self.processor.get_current_step_input(), key));
+
+                        // resets if processor is None
+                        else { self.reset(); }
                     }
 
                     Pages::Finished => {

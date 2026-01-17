@@ -3,7 +3,7 @@ pub mod tooling;
 
 use std::error::Error;
 use std::path::PathBuf;
-use image::{GenericImageView, ImageBuffer, Rgba};
+use image::{GenericImageView, ImageBuffer, ImageResult, Rgba};
 use crate::processor::guide::{ProcessingGuide, ProcessingStep, ProcessingStepTypes};
 
 
@@ -35,8 +35,6 @@ impl Processors {
 
 /// Defines an image processor.
 pub trait EditProcessor {
-    fn update_base_image(&mut self, new_base_image: Option<ImageBuffer<Rgba<u8>, Vec<u8>>>);
-
     /// Returns the label of the current step.
     fn get_current_step_label(&self) -> String;
 
@@ -49,46 +47,48 @@ pub trait EditProcessor {
     /// Checks if the input is valid for the current step.
     fn is_current_step_input_valid(&self) -> bool;
 
-    /// Advances the guide to the next step (if the input is valid) and returns whether or not the guide is finished.
-    fn finish_current_step(&mut self) -> bool;
+    /// Advances the guide to the next step if the input is valid.
+    fn try_finish_current_step(&mut self);
+
+    /// Populates the processor steps from the guide if the guide is ready.
+    fn try_populate(&mut self);
+
+    /// Returns if the processor is ready to process the image.
+    fn is_ready(&self) -> bool;
 
     /// Processes the image and returns the new image.
-    fn try_process(&self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>, Box<dyn Error>>;
+    fn try_process(&self) ->  Option<ImageBuffer<Rgba<u8>, Vec<u8>>>;
 }
 
 
 
 /// Processes an image into a single color spectrum.
 pub struct MonochromaticEdit {
-    /// The original image to be processed.
-    base_image: Option<ImageBuffer<Rgba<u8>, Vec<u8>>>,
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
     /// The base color of the spectrum being used as a hex value.
     base_color_hex: String,
     /// The base color of the spectrum being used as an rgba color.
     base_color_rgba: Rgba<u8>,
     /// The steps used to create the processor.
     guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
 }
 impl MonochromaticEdit {
-    pub fn new(source_path: PathBuf) -> MonochromaticEdit {
-        let base_image;
-        if let Err(_) = image::open(source_path.clone()) { base_image = None; }
-        else { base_image = Some(image::open(source_path.clone()).unwrap().to_rgba8()); }
-        MonochromaticEdit {base_image,
+    pub fn new(source_image_path: PathBuf) -> MonochromaticEdit {
+        MonochromaticEdit {
+            source_image_path,
             base_color_rgba: Rgba([0, 0, 0, 255]),
             base_color_hex: "none".to_string(),
             guide: ProcessingGuide::new(vec![
                 ProcessingStep::new(ProcessingStepTypes::Color, "Base Color (HEX)".to_string()),
-                ProcessingStep::new(ProcessingStepTypes::ColorSmoothing, "Color Smoothing (whole number)".to_string()),
-            ])
+            ]),
+            is_ready: false,
         }
     }
 }
 impl EditProcessor for MonochromaticEdit {
-    fn update_base_image(&mut self, new_base_image: Option<ImageBuffer<Rgba<u8>, Vec<u8>>>) {
-        self.base_image = new_base_image;
-    }
-
     fn get_current_step_label(&self) -> String {
         self.guide.get_current_label()
     }
@@ -105,22 +105,39 @@ impl EditProcessor for MonochromaticEdit {
         self.guide.is_current_input_valid()
     }
 
-    fn finish_current_step(&mut self) -> bool {
-        self.guide.finish_step()
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
     }
 
-    fn try_process(&self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>, Box<dyn Error>> {
-        if let Some(base_image) = &self.base_image {
-            let (width, height) = base_image.dimensions();
+    fn try_populate(&mut self) {
+        if !self.guide.is_ready() { return; }
+        
+        let base_color_hex_result = self.guide.steps[0].as_hex();
+        if base_color_hex_result.is_some() { self.base_color_hex = base_color_hex_result.unwrap(); }
+        else { return; }
 
+        self.is_ready = true;
+    }
+
+    fn is_ready(&self) -> bool {
+        self.is_ready
+    }
+
+    fn try_process(&self) -> Option<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+        
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let ImageResult::Ok(source_image) = source_image_result {
+            // information
+            let (width, height) = source_image.dimensions();
             let mut new_image: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);
 
             // Process pixel by pixel using coordinates
             for y in 0..height {
                 for x in 0..width {
-                    let pixel = base_image.get_pixel(x, y);
+                    let pixel = source_image.get_pixel(x, y);
 
-                    // Example: invert colors
+                    // Example: invert colors todo: change
                     let new_pixel = Rgba([
                         255 - pixel[0],
                         255 - pixel[1],
@@ -132,11 +149,11 @@ impl EditProcessor for MonochromaticEdit {
                 }
             }
 
-            return Ok(new_image)
+            // returns the new image
+            return Some(new_image)
         }
-        else {
-            return Err("No image provided!".into());
-        }
+        
+        None
     }
 }
 
@@ -144,8 +161,8 @@ impl EditProcessor for MonochromaticEdit {
 
 /// Processes an image into two color spectrums.
 pub struct BichromaticEdit {
-    /// The original image to be processed.
-    pub base_image: Option<ImageBuffer<Rgba<u8>, Vec<u8>>>,
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
     /// The first base color of the spectrum being used as a hex value.
     pub base_color_1_hex: String,
     /// The first base color of the spectrum being used as an rgba color.
@@ -156,14 +173,13 @@ pub struct BichromaticEdit {
     pub base_color_2_rgba: Rgba<u8>,
     /// The steps used to create the processor.
     pub guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
 }
 impl BichromaticEdit {
-    pub fn new(source_path: PathBuf) -> BichromaticEdit {
-        let base_image;
-        if let Err(_) = image::open(source_path.clone()) { base_image = None; }
-        else { base_image = Some(image::open(source_path.clone()).unwrap().to_rgba8()); }
+    pub fn new(source_image_path: PathBuf) -> BichromaticEdit {
         BichromaticEdit {
-            base_image,
+            source_image_path,
             base_color_1_rgba: Rgba([0, 0, 0, 255]),
             base_color_1_hex: "none".to_string(),
             base_color_2_rgba: Rgba([0, 0, 0, 255]),
@@ -171,16 +187,12 @@ impl BichromaticEdit {
             guide: ProcessingGuide::new(vec![
                 ProcessingStep::new(ProcessingStepTypes::Color, "Base Color 1 (HEX)".to_string()),
                 ProcessingStep::new(ProcessingStepTypes::Color, "Base Color 2 (HEX)".to_string()),
-                ProcessingStep::new(ProcessingStepTypes::ColorSmoothing, "Color Smoothing (whole number)".to_string()),
-            ])
+            ]),
+            is_ready: false,
         }
     }
 }
 impl EditProcessor for BichromaticEdit {
-    fn update_base_image(&mut self, new_base_image: Option<ImageBuffer<Rgba<u8>, Vec<u8>>>) {
-        self.base_image = new_base_image;
-    }
-
     fn get_current_step_label(&self) -> String {
         self.guide.get_current_label()
     }
@@ -197,22 +209,42 @@ impl EditProcessor for BichromaticEdit {
         self.guide.is_current_input_valid()
     }
 
-    fn finish_current_step(&mut self) -> bool {
-        self.guide.finish_step()
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
     }
 
-    fn try_process(&self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>, Box<dyn Error>> {
-        if let Some(base_image) = &self.base_image {
-            let (width, height) = base_image.dimensions();
+    fn try_populate(&mut self) {
+        if !self.guide.is_ready() { return; }
 
+        let base_color_hex_1_result = self.guide.steps[0].as_hex();
+        let base_color_hex_2_result = self.guide.steps[1].as_hex();
+        if base_color_hex_1_result.is_some() { self.base_color_1_hex = base_color_hex_1_result.unwrap(); }
+        else { return; }
+        if base_color_hex_2_result.is_some() { self.base_color_2_hex = base_color_hex_2_result.unwrap(); }
+        else { return; }
+        
+        self.is_ready = true;
+    }
+
+    fn is_ready(&self) -> bool {
+        self.is_ready
+    }
+
+    fn try_process(&self) -> Option<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let ImageResult::Ok(source_image) = source_image_result {
+            // information
+            let (width, height) = source_image.dimensions();
             let mut new_image: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);
 
             // Process pixel by pixel using coordinates
             for y in 0..height {
                 for x in 0..width {
-                    let pixel = base_image.get_pixel(x, y);
+                    let pixel = source_image.get_pixel(x, y);
 
-                    // Example: invert colors
+                    // Example: invert colors todo: change
                     let new_pixel = Rgba([
                         255 - pixel[0],
                         255 - pixel[1],
@@ -224,10 +256,10 @@ impl EditProcessor for BichromaticEdit {
                 }
             }
 
-            return Ok(new_image)
+            // returns the new image
+            return Some(new_image)
         }
-        else {
-            return Err("No image provided!".into());
-        }
+
+        None
     }
 }

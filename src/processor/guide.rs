@@ -55,18 +55,15 @@ impl ProcessingGuide {
         self.steps[self.current_step].step_type.is_step_valid(self.get_current_input())
     }
 
-    /// Advances the guide to the next step (if the input is valid) and returns whether or not the guide is finished.
-    pub fn finish_step(&mut self) -> bool {
-        // exits early and returns false if the input is invalid
-        if !self.is_current_input_valid() { return false; }
-
-        // returns true if the guide is finished
-        if self.current_step >= self.steps.len() - 1 { return true; }
-
-        // advances the guide to the next step
-        self.current_step += 1;
-        false
+    /// Advances the guide to the next step if the input is valid.
+    pub fn try_finish_current_step(&mut self) {
+        if !self.is_ready() && self.is_current_input_valid() {
+            self.current_step += 1;
+        }
     }
+
+    /// Returns if the guide is finished.
+    pub fn is_ready(&self) -> bool { self.current_step >= self.steps.len() - 1 }
 }
 
 
