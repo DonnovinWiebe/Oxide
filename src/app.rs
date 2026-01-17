@@ -96,7 +96,9 @@ impl App {
     }
 
     pub fn print_selected_image_filename(&self) -> String {
-        self.selected_image_path.clone().unwrap().file_name().unwrap().to_string_lossy().to_string()
+        if self.source_image_paths.is_empty() { return "Error: No images to edit".to_string() }
+
+        self.source_image_paths[self.current_image_path_selection].clone().file_name().unwrap().to_string_lossy().to_string()
     }
 
     pub fn select_next_processor(&mut self) {
