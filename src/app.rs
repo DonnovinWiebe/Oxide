@@ -95,8 +95,8 @@ impl App {
         }
     }
 
-    pub fn print_selected_image_path(&self) -> String {
-        self.source_image_paths[self.current_image_path_selection].to_string_lossy().to_string()
+    pub fn print_selected_image_filename(&self) -> String {
+        self.selected_image_path.clone().unwrap().file_name().unwrap().to_string_lossy().to_string()
     }
 
     pub fn select_next_processor(&mut self) {

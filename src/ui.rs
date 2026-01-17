@@ -42,7 +42,7 @@ pub fn render(frame: &mut Frame, app: &App) {
             let body = Paragraph::new(vec![
                 Line::raw(format!("Found {} images", app.source_image_paths.len())),
                 Line::raw(format!("In: {}", app.source_directory.to_string_lossy())),
-                Line::raw(format!("Selected image: {}", app.print_selected_image_path())),
+                Line::raw(format!("Selected image: {}", app.print_selected_image_filename())),
             ]);
             frame.render_widget(body, leaflets[1]);
         }
@@ -53,9 +53,22 @@ pub fn render(frame: &mut Frame, app: &App) {
         }
 
         Pages::Preprocessing => {
+            if let Some(processor) = &app.selected_processor {
+                let body = Paragraph::new(vec![
+                    Line::raw(format!("Step: {}", processor.get_current_step_label())),
+                    Line::raw(format!("Input: {}", processor.get_current_step_input())),
+                ]);
+                frame.render_widget(body, leaflets[1]);
+            }
+            else {
+                let body = Paragraph::new("Error: No processor");
+                frame.render_widget(body, leaflets[1]);
+            }
         }
 
         Pages::Finished => {
+            let body = Paragraph::new("Saved");
+            frame.render_widget(body, leaflets[1]);
         }
     }
 }
