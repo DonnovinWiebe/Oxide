@@ -44,6 +44,7 @@ pub fn as_rgb(hex: String) -> Option<Rgb<u8>> {
 }
 
 pub fn get_spectrum(color: Rgb<u8>) -> Vec<Rgb<u8>> {
+    let steps: usize = 500; // todo: standardize the number of steps
     // the interpolation information
     let mut base_color = (color[0] as f64, color[1] as f64, color[2] as f64);
     let (r_c, g_c, b_c) = &mut base_color;
@@ -54,10 +55,10 @@ pub fn get_spectrum(color: Rgb<u8>) -> Vec<Rgb<u8>> {
     let black = (0.0, 0.0, 0.0);
     let (r_b, g_b, b_b) = &black;
 
-    let white_increment = (r_w - *r_c, g_w - *g_c, b_w - *b_c);
+    let white_increment = ((r_w - *r_c) / steps as f64, (g_w - *g_c) / steps as f64, (b_w - *b_c) / steps as f64);
     let (r_wi, g_wi, b_wi) = &white_increment;
 
-    let black_increment = (r_b - *r_c, g_b - *g_c, b_b - *b_c);
+    let black_increment = ((r_b - *r_c) / steps as f64, (g_b - *g_c) / steps as f64, (b_b - *b_c) / steps as f64);
     let (r_bi, g_bi, b_bi) = &black_increment;
 
     // the interpolated spectrum
@@ -68,7 +69,7 @@ pub fn get_spectrum(color: Rgb<u8>) -> Vec<Rgb<u8>> {
 
     // builds the interpolation spectrum from the base color to white
     let (mut r, mut g, mut b) = base_color.clone();
-    for _ in 0..1000 { // todo: standardize the number of steps
+    for _ in 0..steps {
         r += r_wi;
         g += g_wi;
         b += b_wi;
@@ -79,7 +80,7 @@ pub fn get_spectrum(color: Rgb<u8>) -> Vec<Rgb<u8>> {
 
     // builds the interpolation spectrum from the base color to black
     let (mut r, mut g, mut b) = base_color.clone();
-    for _ in 0..1000 { // todo: standardize the number of steps
+    for _ in 0..steps {
         r += r_bi;
         g += g_bi;
         b += b_bi;
