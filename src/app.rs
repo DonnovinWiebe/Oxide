@@ -229,7 +229,10 @@ impl App {
                                 if let Some(new_image) = self.new_image.as_ref() {
                                     let source_path = self.selected_image_path.clone().unwrap();
                                     let output_directory = self.output_directory.clone();
-                                    let filename = source_path.file_name().unwrap().to_string_lossy().to_string() + Processors::get_processor(self.current_processor_selection).name().as_str();
+
+                                    let name = self.selected_image_path.clone().unwrap().file_stem().unwrap().to_string_lossy().to_string();
+                                    let extension = self.selected_image_path.clone().unwrap().extension().unwrap().to_string_lossy().to_string();
+                                    let filename = format!("{} {}.{}", name, Processors::get_processor(self.current_processor_selection).name(), extension);
                                     let output_path = output_directory.join(filename);
 
 
