@@ -3,7 +3,7 @@ pub mod tooling;
 
 use std::error::Error;
 use std::path::PathBuf;
-use image::{GenericImageView, ImageBuffer, ImageResult, Rgba};
+use image::{GenericImageView, ImageBuffer, ImageResult, Rgb};
 use crate::processor::guide::{ProcessingGuide, ProcessingStep, ProcessingStepTypes};
 
 
@@ -57,7 +57,7 @@ pub trait EditProcessor {
     fn is_ready(&self) -> bool;
 
     /// Processes the image and returns the new image.
-    fn try_process(&self) ->  Option<ImageBuffer<Rgba<u8>, Vec<u8>>>;
+    fn try_process(&self) ->  Option<ImageBuffer<Rgb<u8>, Vec<u8>>>;
 }
 
 
@@ -68,8 +68,8 @@ pub struct MonochromaticEdit {
     source_image_path: PathBuf,
     /// The base color of the spectrum being used as a hex value.
     base_color_hex: String,
-    /// The base color of the spectrum being used as an rgba color.
-    base_color_rgba: Rgba<u8>,
+    /// The base color of the spectrum being used as an rgb color.
+    base_color_rgb: Rgb<u8>,
     /// The steps used to create the processor.
     guide: ProcessingGuide,
     /// Tracks if the processor is ready.
@@ -79,7 +79,7 @@ impl MonochromaticEdit {
     pub fn new(source_image_path: PathBuf) -> MonochromaticEdit {
         MonochromaticEdit {
             source_image_path,
-            base_color_rgba: Rgba([0, 0, 0, 255]),
+            base_color_rgb: Rgb([0, 0, 0]),
             base_color_hex: "none".to_string(),
             guide: ProcessingGuide::new(vec![
                 ProcessingStep::new(ProcessingStepTypes::Color, "Base Color (HEX)".to_string()),
@@ -123,14 +123,14 @@ impl EditProcessor for MonochromaticEdit {
         self.is_ready
     }
 
-    fn try_process(&self) -> Option<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+    fn try_process(&self) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         if !self.is_ready { return None; }
         
         let source_image_result = image::open(self.source_image_path.clone());
         if let ImageResult::Ok(source_image) = source_image_result {
             // information
             let (width, height) = source_image.dimensions();
-            let mut new_image: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+            let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
 
             // Process pixel by pixel using coordinates
             for y in 0..height {
@@ -138,11 +138,10 @@ impl EditProcessor for MonochromaticEdit {
                     let pixel = source_image.get_pixel(x, y);
 
                     // Example: invert colors todo: change
-                    let new_pixel = Rgba([
+                    let new_pixel = Rgb([
                         255 - pixel[0],
                         255 - pixel[1],
                         255 - pixel[2],
-                        pixel[3],
                     ]);
 
                     new_image.put_pixel(x, y, new_pixel);
@@ -165,12 +164,12 @@ pub struct BichromaticEdit {
     source_image_path: PathBuf,
     /// The first base color of the spectrum being used as a hex value.
     pub base_color_1_hex: String,
-    /// The first base color of the spectrum being used as an rgba color.
-    pub base_color_1_rgba: Rgba<u8>,
+    /// The first base color of the spectrum being used as an rgb color.
+    pub base_color_1_rgb: Rgb<u8>,
     /// The second base color of the spectrum being used as a hex value.
     pub base_color_2_hex: String,
-    /// The second base color of the spectrum being used as an rgba color.
-    pub base_color_2_rgba: Rgba<u8>,
+    /// The second base color of the spectrum being used as an rgb color.
+    pub base_color_2_rgb: Rgb<u8>,
     /// The steps used to create the processor.
     pub guide: ProcessingGuide,
     /// Tracks if the processor is ready.
@@ -180,9 +179,9 @@ impl BichromaticEdit {
     pub fn new(source_image_path: PathBuf) -> BichromaticEdit {
         BichromaticEdit {
             source_image_path,
-            base_color_1_rgba: Rgba([0, 0, 0, 255]),
+            base_color_1_rgb: Rgb([0, 0, 0]),
             base_color_1_hex: "none".to_string(),
-            base_color_2_rgba: Rgba([0, 0, 0, 255]),
+            base_color_2_rgb: Rgb([0, 0, 0]),
             base_color_2_hex: "none".to_string(),
             guide: ProcessingGuide::new(vec![
                 ProcessingStep::new(ProcessingStepTypes::Color, "Base Color 1 (HEX)".to_string()),
@@ -230,14 +229,14 @@ impl EditProcessor for BichromaticEdit {
         self.is_ready
     }
 
-    fn try_process(&self) -> Option<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+    fn try_process(&self) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         if !self.is_ready { return None; }
 
         let source_image_result = image::open(self.source_image_path.clone());
         if let ImageResult::Ok(source_image) = source_image_result {
             // information
             let (width, height) = source_image.dimensions();
-            let mut new_image: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+            let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
 
             // Process pixel by pixel using coordinates
             for y in 0..height {
@@ -245,11 +244,10 @@ impl EditProcessor for BichromaticEdit {
                     let pixel = source_image.get_pixel(x, y);
 
                     // Example: invert colors todo: change
-                    let new_pixel = Rgba([
+                    let new_pixel = Rgb([
                         255 - pixel[0],
                         255 - pixel[1],
                         255 - pixel[2],
-                        pixel[3],
                     ]);
 
                     new_image.put_pixel(x, y, new_pixel);

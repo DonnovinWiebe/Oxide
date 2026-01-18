@@ -6,7 +6,7 @@ use crate::processor;
 use crate::ui::{render, Instruction};
 use std::io::{Error, Result};
 use std::string::String;
-use image::{ImageBuffer, Rgba};
+use image::{ImageBuffer, Rgb};
 use ratatui::backend::Backend;
 use ratatui::Terminal;
 use crate::processor::{BichromaticEdit, EditProcessor, MonochromaticEdit, Processors};
@@ -37,7 +37,7 @@ pub struct App {
     pub current_processor_selection: usize,
     pub selected_processor: Option<Box<dyn EditProcessor>>,
     // new image
-    pub new_image: Option<ImageBuffer<Rgba<u8>, Vec<u8>>>,
+    pub new_image: Option<ImageBuffer<Rgb<u8>, Vec<u8>>>,
 }
 
 impl App {
@@ -216,12 +216,17 @@ impl App {
                                 self.new_image = processor.try_process();
 
                                 if let Some(new_image) = self.new_image.as_ref() {
-                                    let source_directory = self.selected_image_path.clone().unwrap();
+                                    let source_path = self.selected_image_path.clone().unwrap();
                                     let output_directory = self.output_directory.clone();
-                                    let filename = source_directory.file_name().unwrap();
+                                    let filename = source_path.file_name().unwrap();
                                     let output_path = output_directory.join(filename);
-                                    new_image.save(&output_path).expect("Could not save image!");
-
+                                    match new_image.save(&output_path) { // todo: make this more standard standard practice
+                                        Ok(_) => self.current_page = Pages::Finished,
+                                        Err(e) => {
+                                            eprintln!("Save error: {:?}", e);
+                                            eprintln!("Output path: {:?}", output_path);
+                                        }
+                                    }
                                     self.current_page = Pages::Finished;
                                 }
                                 else { continue; }
