@@ -119,7 +119,10 @@ impl EditProcessor for MonochromaticEdit {
         if !self.guide.is_ready() { return; }
         
         let base_color_hex_result = self.guide.steps[0].as_hex();
-        if base_color_hex_result.is_some() { self.base_color_hex = base_color_hex_result.unwrap(); }
+        if base_color_hex_result.is_some() {
+            self.base_color_hex = base_color_hex_result.unwrap();
+            self.base_color_rgb = tooling::as_rgb(self.base_color_hex.clone()).unwrap();
+        }
         else { return; }
 
         self.is_ready = true;
@@ -221,9 +224,15 @@ impl EditProcessor for BichromaticEdit {
 
         let base_color_hex_1_result = self.guide.steps[0].as_hex();
         let base_color_hex_2_result = self.guide.steps[1].as_hex();
-        if base_color_hex_1_result.is_some() { self.base_color_1_hex = base_color_hex_1_result.unwrap(); }
+        if base_color_hex_1_result.is_some() {
+            self.base_color_1_hex = base_color_hex_1_result.unwrap();
+            self.base_color_1_rgb = tooling::as_rgb(self.base_color_1_hex.clone()).unwrap();
+        }
         else { return; }
-        if base_color_hex_2_result.is_some() { self.base_color_2_hex = base_color_hex_2_result.unwrap(); }
+        if base_color_hex_2_result.is_some() {
+            self.base_color_2_hex = base_color_hex_2_result.unwrap();
+            self.base_color_2_rgb = tooling::as_rgb(self.base_color_2_hex.clone()).unwrap();
+        }
         else { return; }
         
         self.is_ready = true;
