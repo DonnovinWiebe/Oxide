@@ -126,7 +126,7 @@ impl App {
     }
 
     pub fn reset(&mut self) {
-        self.current_page = Pages::Launching;
+        self.current_page = Pages::SelectingImageSource;
         self.current_image_path_selection = 0;
         self.selected_image_path = None;
         self.current_processor_selection = 0;
