@@ -3,10 +3,9 @@ pub mod tooling;
 
 use std::error::Error;
 use std::path::PathBuf;
-use image::{GenericImageView, ImageBuffer, ImageResult, Rgb};
+use image::{GenericImageView, ImageBuffer, ImageResult, Pixel, Rgb};
 use crate::processor::guide::{ProcessingGuide, ProcessingStep, ProcessingStepTypes};
-
-
+use crate::processor::tooling::{get_closest_color, get_spectrum};
 
 pub enum Processors {
     Monochromatic,
@@ -131,18 +130,13 @@ impl EditProcessor for MonochromaticEdit {
             // information
             let (width, height) = source_image.dimensions();
             let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+            let spectrum = get_spectrum(self.base_color_rgb);
 
             // Process pixel by pixel using coordinates
             for y in 0..height {
                 for x in 0..width {
-                    let pixel = source_image.get_pixel(x, y);
-
-                    // Example: invert colors todo: change
-                    let new_pixel = Rgb([
-                        255 - pixel[0],
-                        255 - pixel[1],
-                        255 - pixel[2],
-                    ]);
+                    let pixel = source_image.get_pixel(x, y).to_rgb();
+                    let new_pixel = get_closest_color(&spectrum, pixel);
 
                     new_image.put_pixel(x, y, new_pixel);
                 }
@@ -237,18 +231,14 @@ impl EditProcessor for BichromaticEdit {
             // information
             let (width, height) = source_image.dimensions();
             let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+            let mut spectrum = get_spectrum(self.base_color_1_rgb);
+            spectrum.extend(get_spectrum(self.base_color_2_rgb));
 
             // Process pixel by pixel using coordinates
             for y in 0..height {
                 for x in 0..width {
-                    let pixel = source_image.get_pixel(x, y);
-
-                    // Example: invert colors todo: change
-                    let new_pixel = Rgb([
-                        255 - pixel[0],
-                        255 - pixel[1],
-                        255 - pixel[2],
-                    ]);
+                    let pixel = source_image.get_pixel(x, y).to_rgb();
+                    let new_pixel = get_closest_color(&spectrum, pixel);
 
                     new_image.put_pixel(x, y, new_pixel);
                 }

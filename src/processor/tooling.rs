@@ -1,7 +1,13 @@
 use std::cmp::min;
+use std::collections::HashSet;
 use image::{Pixel, Rgb};
 
 
+
+fn remove_duplicates_unordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>) -> Vec<T> {
+    let set: HashSet<_> = data.into_iter().collect();
+    set.into_iter().collect()
+}
 
 pub fn is_hex(code: String) -> bool {
     let code = code.trim_start_matches('#');
@@ -37,7 +43,7 @@ pub fn as_rgb(hex: String) -> Option<Rgb<u8>> {
     Some(Rgb([r, g, b]))
 }
 
-pub fn get_spectrum(color: Rgb<u8>, steps: usize) -> Vec<Rgb<u8>> {
+pub fn get_spectrum(color: Rgb<u8>) -> Vec<Rgb<u8>> {
     // the interpolation information
     let mut base_color = (color[0] as f64, color[1] as f64, color[2] as f64);
     let (r_c, g_c, b_c) = &mut base_color;
@@ -54,15 +60,15 @@ pub fn get_spectrum(color: Rgb<u8>, steps: usize) -> Vec<Rgb<u8>> {
     let black_increment = (r_b - *r_c, g_b - *g_c, b_b - *b_c);
     let (r_bi, g_bi, b_bi) = &black_increment;
 
-
     // the interpolated spectrum
     let mut interpolated_spectrum = Vec::new();
     interpolated_spectrum.push((r_c.clone(), g_c.clone(), b_c.clone()));
 
 
+
     // builds the interpolation spectrum from the base color to white
     let (mut r, mut g, mut b) = base_color.clone();
-    for _ in 0..steps {
+    for _ in 0..1000 { // todo: standardize the number of steps
         r += r_wi;
         g += g_wi;
         b += b_wi;
@@ -70,14 +76,16 @@ pub fn get_spectrum(color: Rgb<u8>, steps: usize) -> Vec<Rgb<u8>> {
     }
 
 
+
     // builds the interpolation spectrum from the base color to black
     let (mut r, mut g, mut b) = base_color.clone();
-    for _ in 0..steps {
+    for _ in 0..1000 { // todo: standardize the number of steps
         r += r_bi;
         g += g_bi;
         b += b_bi;
         interpolated_spectrum.push((r.clone(), g.clone(), b.clone()));
     }
+
 
 
     // turns the interpolation spectrum to an Rgb spectrum
@@ -87,6 +95,12 @@ pub fn get_spectrum(color: Rgb<u8>, steps: usize) -> Vec<Rgb<u8>> {
         let new_color = Rgb([r_i.round() as u8, g_i.round() as u8, b_i.round() as u8]);
         spectrum.push(new_color);
     }
+
+
+
+    // removes duplicates from the spectrum
+    spectrum = remove_duplicates_unordered(spectrum);
+
 
 
     // returns the spectrum
