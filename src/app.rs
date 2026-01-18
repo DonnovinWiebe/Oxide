@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 use ratatui::crossterm::event;
 use ratatui::crossterm::event::Event;
@@ -7,11 +8,14 @@ use crate::ui::{render, Instruction};
 use std::io::{Error, Result};
 use std::string::String;
 use image::{ImageBuffer, Rgb};
+use img_parts::ImageEXIF;
 use ratatui::backend::Backend;
 use ratatui::Terminal;
 use crate::processor::{BichromaticEdit, EditProcessor, MonochromaticEdit, Processors};
 use crate::processor::guide::{ProcessingGuide, ProcessingStep};
 use crate::processor::Processors::Monochromatic;
+use img_parts::jpeg::Jpeg;
+use img_parts::png::Png;
 
 #[derive(Copy, Clone)]
 pub enum Pages {
@@ -155,6 +159,8 @@ impl App {
                         self.current_page = Pages::SelectingImageSource;
                     }
 
+
+
                     Pages::SelectingImageSource => {
                         if key.code == Instruction::select_next().keybind {
                             self.select_next_source_image_path();
@@ -176,6 +182,8 @@ impl App {
                             break;
                         }
                     }
+
+
 
                     Pages::SelectingProcessingType => {
                         if key.code == Instruction::select_next().keybind {
@@ -206,6 +214,8 @@ impl App {
                         }
                     }
 
+
+
                     Pages::Preprocessing => {
                         // checks if processor is valid
                         if let Some(processor) = &mut self.selected_processor {
@@ -215,20 +225,58 @@ impl App {
                                 processor.try_populate();
                                 self.new_image = processor.try_process();
 
+                                // saves the new image if it is created by try_process()
                                 if let Some(new_image) = self.new_image.as_ref() {
                                     let source_path = self.selected_image_path.clone().unwrap();
                                     let output_directory = self.output_directory.clone();
-                                    let filename = source_path.file_name().unwrap();
+                                    let filename = source_path.file_name().unwrap().to_string_lossy().to_string() + Processors::get_processor(self.current_processor_selection).name().as_str();
                                     let output_path = output_directory.join(filename);
+
+
+
+                                    // saving the new image and working with potential errors
                                     match new_image.save(&output_path) { // todo: make this more standard standard practice
-                                        Ok(_) => self.current_page = Pages::Finished,
+                                        // did save
+                                        Ok(_) => {
+                                            // getting the image type
+                                            let image_type = output_path.extension()
+                                            .and_then(|s| s.to_str())
+                                            .map(|s| s.to_lowercase())
+                                            .unwrap_or_default();
+
+                                            // injecting the metadata from the source image
+                                            match image_type.as_str() {
+                                                "jpg" | "jpeg" => {
+                                                    let source_image = Jpeg::from_bytes(fs::read(source_path.clone())?.into()).unwrap();
+                                                    let mut new_image = Jpeg::from_bytes(fs::read(output_path.clone())?.into()).unwrap();
+                                                    new_image.set_exif(source_image.exif().clone());
+                                                    fs::write(output_path, new_image.encoder().bytes())?;
+                                                }
+
+                                                "png" => {
+                                                    let source_image = Png::from_bytes(fs::read(source_path.clone())?.into()).unwrap();
+                                                    let mut new_image = Png::from_bytes(fs::read(output_path.clone())?.into()).unwrap();
+                                                    new_image.set_exif(source_image.exif().clone());
+                                                    fs::write(output_path, new_image.encoder().bytes())?;
+                                                }
+
+                                                _ => {}
+                                            }
+
+
+
+                                            // finished
+                                            self.current_page = Pages::Finished
+                                        }
+
+                                        // did not save
                                         Err(e) => {
                                             eprintln!("Save error: {:?}", e);
                                             eprintln!("Output path: {:?}", output_path);
                                         }
                                     }
-                                    self.current_page = Pages::Finished;
                                 }
+                                // continues if no new image was created (not ready)
                                 else { continue; }
                             }
 
@@ -245,6 +293,8 @@ impl App {
                         // resets if processor is None
                         else { self.reset(); }
                     }
+
+
 
                     Pages::Finished => {
                         if key.code == Instruction::run_again_instruction().keybind {
