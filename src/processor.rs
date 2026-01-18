@@ -34,6 +34,9 @@ impl Processors {
 
 /// Defines an image processor.
 pub trait EditProcessor {
+    /// Returns the set of colors used in editing the image in order to print them in the editing image filename
+    fn get_color_set(&self) -> String;
+
     /// Returns the label of the current step.
     fn get_current_step_label(&self) -> String;
 
@@ -88,6 +91,10 @@ impl MonochromaticEdit {
     }
 }
 impl EditProcessor for MonochromaticEdit {
+    fn get_color_set(&self) -> String {
+        format!("{}", self.base_color_hex.clone())
+    }
+
     fn get_current_step_label(&self) -> String {
         self.guide.get_current_label()
     }
@@ -186,6 +193,9 @@ impl BichromaticEdit {
     }
 }
 impl EditProcessor for BichromaticEdit {
+    fn get_color_set(&self) -> String {
+        format!("{}-{}", self.base_color_1_hex.clone(), self.base_color_2_hex.clone())
+    }
     fn get_current_step_label(&self) -> String {
         self.guide.get_current_label()
     }

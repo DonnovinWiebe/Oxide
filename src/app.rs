@@ -232,7 +232,12 @@ impl App {
 
                                     let name = self.selected_image_path.clone().unwrap().file_stem().unwrap().to_string_lossy().to_string();
                                     let extension = self.selected_image_path.clone().unwrap().extension().unwrap().to_string_lossy().to_string();
-                                    let filename = format!("{} {}.{}", name, Processors::get_processor(self.current_processor_selection).name(), extension);
+                                    let filename = format!("{} {} {}.{}",
+                                                           name,
+                                                           Processors::get_processor(self.current_processor_selection).name(),
+                                                           processor.get_color_set(),
+                                                           extension
+                                    );
                                     let output_path = output_directory.join(filename);
 
 
