@@ -5,7 +5,7 @@ use ratatui::widgets::*;
 use crate::app::{App, Pages};
 use crate::processor::Processors;
 
-pub fn render(frame: &mut Frame, app: &App) {
+pub fn render_current_page(frame: &mut Frame, app: &App) {
     // header
     let header_block = Block::new().borders(Borders::ALL);
     let header = Paragraph::new(vec![
@@ -71,6 +71,35 @@ pub fn render(frame: &mut Frame, app: &App) {
             frame.render_widget(body, leaflets[1]);
         }
     }
+}
+
+
+
+pub fn render_progress(frame: &mut Frame, percent_complete: f64) {
+    // header
+    let header_block = Block::new().borders(Borders::ALL);
+    let header = Paragraph::new(vec![
+        Line::raw("Oxide"),
+        Line::raw("Processing..."),
+    ]).block(header_block);
+
+    // The sections of the screen.
+    let leaflets = Layout::new(Direction::Vertical, [
+        Constraint::Length(4), // header
+        Constraint::Fill(1), // body
+    ]).split(frame.area());
+
+    // rendering the header
+    frame.render_widget(header, leaflets[0]);
+
+    // rendering the progress
+    let body = Paragraph::new(vec![
+        Line::raw(""),
+        Line::raw(""),
+        Line::raw(""),
+        Line::raw(format!("Progress: {:.1}%", percent_complete)),
+    ]);
+    frame.render_widget(body, leaflets[1]);
 }
 
 

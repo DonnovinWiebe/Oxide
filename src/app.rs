@@ -4,7 +4,7 @@ use ratatui::crossterm::event;
 use ratatui::crossterm::event::Event;
 use ratatui::prelude::*;
 use crate::processor;
-use crate::ui::{render, Instruction};
+use crate::ui::{render_current_page, Instruction};
 use std::io::{Error, Result};
 use std::string::String;
 use image::{ImageBuffer, Rgb};
@@ -146,7 +146,8 @@ impl App {
 
 
             // rendering
-            terminal.draw(|frame| render(frame, self))?;
+            terminal.clear()?;
+            terminal.draw(|frame| render_current_page(frame, self))?;
 
 
 
@@ -223,7 +224,15 @@ impl App {
                             if key.code == Instruction::confirm_instruction().keybind {
                                 processor.try_finish_current_step();
                                 processor.try_populate();
-                                self.new_image = processor.try_process();
+
+
+
+                                // Creates a temporary terminal with a concrete backend type
+                                let mut concrete_terminal = Terminal::new(CrosstermBackend::new(std::io::stdout()))?;
+                                // processes the image and renders the progress
+                                self.new_image = processor.try_process(&mut concrete_terminal);
+
+
 
                                 // saves the new image if it is created by try_process()
                                 if let Some(new_image) = self.new_image.as_ref() {

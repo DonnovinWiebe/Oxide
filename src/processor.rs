@@ -2,10 +2,14 @@ pub mod guide;
 pub mod tooling;
 
 use std::error::Error;
+use std::io::{Stdout, Write};
 use std::path::PathBuf;
 use image::{GenericImageView, ImageBuffer, ImageResult, Pixel, Rgb};
+use ratatui::prelude::{Backend, CrosstermBackend};
+use ratatui::Terminal;
 use crate::processor::guide::{ProcessingGuide, ProcessingStep, ProcessingStepTypes};
 use crate::processor::tooling::{get_closest_color, get_spectrum};
+use crate::ui::{render_current_page, render_progress};
 
 pub enum Processors {
     Monochromatic,
@@ -59,7 +63,7 @@ pub trait EditProcessor {
     fn is_ready(&self) -> bool;
 
     /// Processes the image and returns the new image.
-    fn try_process(&self) ->  Option<ImageBuffer<Rgb<u8>, Vec<u8>>>;
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) ->  Option<ImageBuffer<Rgb<u8>, Vec<u8>>>;
 }
 
 
@@ -132,7 +136,7 @@ impl EditProcessor for MonochromaticEdit {
         self.is_ready
     }
 
-    fn try_process(&self) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         if !self.is_ready { return None; }
         
         let source_image_result = image::open(self.source_image_path.clone());
@@ -143,12 +147,20 @@ impl EditProcessor for MonochromaticEdit {
             let spectrum = get_spectrum(self.base_color_rgb);
 
             // Process pixel by pixel using coordinates
+            let pixel_count = width * height;
+            let mut pixels_edited = 0;
             for y in 0..height {
                 for x in 0..width {
                     let pixel = source_image.get_pixel(x, y).to_rgb();
                     let new_pixel = get_closest_color(&spectrum, pixel);
 
                     new_image.put_pixel(x, y, new_pixel);
+
+                    pixels_edited += 1;
+                    if pixels_edited % 300 == 0 {
+                        let percentage = (pixels_edited as f64 / pixel_count as f64) * 100.0;
+                        let _ = terminal.draw(|frame| render_progress(frame, percentage));
+                    }
                 }
             }
 
@@ -242,7 +254,7 @@ impl EditProcessor for BichromaticEdit {
         self.is_ready
     }
 
-    fn try_process(&self) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         if !self.is_ready { return None; }
 
         let source_image_result = image::open(self.source_image_path.clone());
@@ -254,12 +266,20 @@ impl EditProcessor for BichromaticEdit {
             spectrum.extend(get_spectrum(self.base_color_2_rgb));
 
             // Process pixel by pixel using coordinates
+            let pixel_count = width * height;
+            let mut pixels_edited = 0;
             for y in 0..height {
                 for x in 0..width {
                     let pixel = source_image.get_pixel(x, y).to_rgb();
                     let new_pixel = get_closest_color(&spectrum, pixel);
 
                     new_image.put_pixel(x, y, new_pixel);
+
+                    pixels_edited += 1;
+                    if pixels_edited % 300 == 0 {
+                        let percentage = (pixels_edited as f64 / pixel_count as f64) * 100.0;
+                        let _ = terminal.draw(|frame| render_progress(frame, percentage));
+                    }
                 }
             }
 
