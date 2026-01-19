@@ -126,9 +126,9 @@ pub fn get_closest_color(pallet: &Vec<Rgb<u8>>, color: Rgb<u8>) -> Rgb<u8> {
 }
 
 pub fn get_distance(color_1: Rgb<u8>, color_2: Rgb<u8>) -> f32 {
-    let r_dist = (color_1[0] as f32 - color_2[0] as f32).abs();
-    let g_dist = (color_1[1] as f32 - color_2[1] as f32).abs();
-    let b_dist = (color_1[2] as f32 - color_2[2] as f32).abs();
+    let r_dist = ((color_1[0] as i32 - color_2[0] as i32) as f32).abs();
+    let g_dist = ((color_1[1] as i32 - color_2[1] as i32) as f32).abs();
+    let b_dist = ((color_1[2] as i32 - color_2[2] as i32) as f32).abs();
 
-    (r_dist.powi(2) + g_dist.powi(2) + b_dist.powi(2)).sqrt()
+    r_dist.powi(2) + g_dist.powi(2) + b_dist.powi(2)
 }
