@@ -9,7 +9,7 @@ use ratatui::prelude::{Backend, CrosstermBackend};
 use ratatui::Terminal;
 use crate::processor::guide::{ProcessingGuide, ProcessingStep, ProcessingStepTypes};
 use crate::processor::tooling::{get_closest_color, get_spectrum};
-use crate::ui::{render_current_page, render_progress};
+use crate::ui::{render_current_page, render_loading, render_progress};
 
 pub enum Processors {
     Monochromatic,
@@ -141,14 +141,25 @@ impl EditProcessor for MonochromaticEdit {
         
         let source_image_result = image::open(self.source_image_path.clone());
         if let ImageResult::Ok(source_image) = source_image_result {
+
             // information
+            let _ = terminal.clear();
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
             let (width, height) = source_image.dimensions();
             let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+
+            // getting the colors
+            let _ = terminal.clear();
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let spectrum = get_spectrum(self.base_color_rgb);
 
-            // Process pixel by pixel using coordinates
+            // pixel information
+            let _ = terminal.clear();
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading pixels...".to_string()));
             let pixel_count = width * height;
             let mut pixels_edited = 0;
+
+            // editing pixel by pixel
             for y in 0..height {
                 for x in 0..width {
                     let pixel = source_image.get_pixel(x, y).to_rgb();
@@ -156,9 +167,11 @@ impl EditProcessor for MonochromaticEdit {
 
                     new_image.put_pixel(x, y, new_pixel);
 
+                    // rendering progress
                     pixels_edited += 1;
-                    if pixels_edited % 300 == 0 {
+                    if pixels_edited % 1000 == 0 {
                         let percentage = (pixels_edited as f64 / pixel_count as f64) * 100.0;
+                        let _ = terminal.clear();
                         let _ = terminal.draw(|frame| render_progress(frame, percentage));
                     }
                 }
@@ -259,15 +272,26 @@ impl EditProcessor for BichromaticEdit {
 
         let source_image_result = image::open(self.source_image_path.clone());
         if let ImageResult::Ok(source_image) = source_image_result {
+
             // information
+            let _ = terminal.clear();
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
             let (width, height) = source_image.dimensions();
             let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+
+            // getting the colors
+            let _ = terminal.clear();
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let mut spectrum = get_spectrum(self.base_color_1_rgb);
             spectrum.extend(get_spectrum(self.base_color_2_rgb));
 
-            // Process pixel by pixel using coordinates
+            // pixel information
+            let _ = terminal.clear();
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading pixels...".to_string()));
             let pixel_count = width * height;
             let mut pixels_edited = 0;
+
+            // editing pixel by pixel
             for y in 0..height {
                 for x in 0..width {
                     let pixel = source_image.get_pixel(x, y).to_rgb();
@@ -275,9 +299,11 @@ impl EditProcessor for BichromaticEdit {
 
                     new_image.put_pixel(x, y, new_pixel);
 
+                    // rendering progress
                     pixels_edited += 1;
-                    if pixels_edited % 300 == 0 {
+                    if pixels_edited % 1000 == 0 {
                         let percentage = (pixels_edited as f64 / pixel_count as f64) * 100.0;
+                        let _ = terminal.clear();
                         let _ = terminal.draw(|frame| render_progress(frame, percentage));
                     }
                 }

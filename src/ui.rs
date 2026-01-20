@@ -74,6 +74,34 @@ pub fn render_current_page(frame: &mut Frame, app: &App) {
 }
 
 
+pub fn render_loading(frame: &mut Frame, info: String) {
+    // header
+    let header_block = Block::new().borders(Borders::ALL);
+    let header = Paragraph::new(vec![
+        Line::raw("Oxide"),
+        Line::raw("Processing..."),
+    ]).block(header_block);
+
+    // The sections of the screen.
+    let leaflets = Layout::new(Direction::Vertical, [
+        Constraint::Length(4), // header
+        Constraint::Fill(1), // body
+    ]).split(frame.area());
+
+    // rendering the header
+    frame.render_widget(header, leaflets[0]);
+
+    // rendering the progress
+    let body = Paragraph::new(vec![
+        Line::raw(""),
+        Line::raw(""),
+        Line::raw(""),
+        Line::raw(info),
+    ]);
+    frame.render_widget(body, leaflets[1]);
+}
+
+
 
 pub fn render_progress(frame: &mut Frame, percent_complete: f64) {
     // header
