@@ -8,7 +8,7 @@ use image::{GenericImageView, ImageBuffer, ImageResult, Pixel, Rgb};
 use ratatui::prelude::{Backend, CrosstermBackend};
 use ratatui::Terminal;
 use crate::processor::guide::{ProcessingGuide, ProcessingStep, ProcessingStepTypes};
-use crate::processor::tooling::{get_closest_color, get_spectrum};
+use crate::processor::tooling::{get_closest_color, get_spectrum, remove_duplicates_unordered};
 use crate::ui::{render_current_page, render_loading, render_progress};
 
 pub enum Processors {
@@ -284,6 +284,7 @@ impl EditProcessor for BichromaticEdit {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let mut spectrum = get_spectrum(self.base_color_1_rgb);
             spectrum.extend(get_spectrum(self.base_color_2_rgb));
+            spectrum = remove_duplicates_unordered(spectrum);
 
             // pixel information
             let _ = terminal.clear();

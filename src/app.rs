@@ -174,6 +174,7 @@ impl App {
                             // from here self.selected_image_path is guaranteed to be set
                             if self.source_image_paths.is_empty() { continue; }
 
+                            self.update_selected_image_path();
                             self.current_page = Pages::SelectingProcessingType;
                         }
                         if key.code == Instruction::reset_instruction().keybind {

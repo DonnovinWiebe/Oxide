@@ -4,7 +4,7 @@ use image::{Pixel, Rgb};
 
 
 
-fn remove_duplicates_unordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>) -> Vec<T> {
+pub fn remove_duplicates_unordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>) -> Vec<T> {
     let set: HashSet<_> = data.into_iter().collect();
     set.into_iter().collect()
 }
