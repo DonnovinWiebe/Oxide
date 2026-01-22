@@ -1,4 +1,4 @@
-use crate::processor::tooling;
+use crate::processor::tooling::pallet::*;
 
 
 
@@ -13,7 +13,7 @@ impl ProcessingStepTypes {
     /// Checks if a given input is valid for the given step type.
     fn is_step_valid(&self, input: String) -> bool {
         match self {
-            ProcessingStepTypes::Color => tooling::is_hex(input),
+            ProcessingStepTypes::Color => is_hex(input),
             ProcessingStepTypes::ColorSmoothing => input.parse::<usize>().is_ok(),
         }
     }
@@ -85,7 +85,7 @@ impl ProcessingStep {
 
     /// Returns the input as a hex.
     pub fn as_hex(&self) -> Option<String> {
-        if tooling::is_hex(self.input.clone()) { return Some(self.input.clone()); }
+        if is_hex(self.input.clone()) { return Some(self.input.clone()); }
         None
     }
 

@@ -1,134 +1,222 @@
-use std::cmp::min;
-use std::collections::HashSet;
-use image::{Pixel, Rgb};
+pub mod pallet {
+    use std::cmp::min;
+    use std::collections::HashSet;
+    use image::{Pixel, Rgb};
 
 
 
-pub fn remove_duplicates_unordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>) -> Vec<T> {
-    let set: HashSet<_> = data.into_iter().collect();
-    set.into_iter().collect()
-}
-
-pub fn is_hex(code: String) -> bool {
-    let code = code.trim_start_matches('#');
-    (code.len() == 3 || code.len() == 6 || code.len() == 8) && code.chars().all(|c| c.is_ascii_hexdigit())
-}
-
-pub fn as_rgb(hex: String) -> Option<Rgb<u8>> {
-    let hex = hex.trim_start_matches('#');
-
-    let (r, g, b, a) = match hex.len() {
-        3 => {
-            let r = u8::from_str_radix(&hex[0..1].repeat(2), 16).ok()?;
-            let g = u8::from_str_radix(&hex[1..2].repeat(2), 16).ok()?;
-            let b = u8::from_str_radix(&hex[2..3].repeat(2), 16).ok()?;
-            (r, g, b, 255)
-        }
-        6 => {
-            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
-            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
-            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
-            (r, g, b, 255)
-        }
-        8 => {
-            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
-            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
-            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
-            let a = u8::from_str_radix(&hex[6..8], 16).ok()?;
-            (r, g, b, a)
-        }
-        _ => return None,
-    };
-
-    Some(Rgb([r, g, b]))
-}
-
-pub fn get_spectrum(color: Rgb<u8>) -> Vec<Rgb<u8>> {
-    let steps: usize = 500; // todo: standardize the number of steps
-    // the interpolation information
-    let mut base_color = (color[0] as f64, color[1] as f64, color[2] as f64);
-    let (r_c, g_c, b_c) = &mut base_color;
-
-    let white = (255.0, 255.0, 255.0);
-    let (r_w, g_w, b_w) = &white;
-
-    let black = (0.0, 0.0, 0.0);
-    let (r_b, g_b, b_b) = &black;
-
-    let white_increment = ((r_w - *r_c) / steps as f64, (g_w - *g_c) / steps as f64, (b_w - *b_c) / steps as f64);
-    let (r_wi, g_wi, b_wi) = &white_increment;
-
-    let black_increment = ((r_b - *r_c) / steps as f64, (g_b - *g_c) / steps as f64, (b_b - *b_c) / steps as f64);
-    let (r_bi, g_bi, b_bi) = &black_increment;
-
-    // the interpolated spectrum
-    let mut interpolated_spectrum = Vec::new();
-    interpolated_spectrum.push((r_c.clone(), g_c.clone(), b_c.clone()));
+    fn interpolation_steps() -> usize { 442 } // this will catch every 8-bit color between any 2 8-bit colors
+    fn white() -> Rgb<u8> { Rgb([255, 255, 255]) }
+    fn black() -> Rgb<u8> { Rgb([0, 0, 0]) }
 
 
-
-    // builds the interpolation spectrum from the base color to white
-    let (mut r, mut g, mut b) = base_color.clone();
-    for _ in 0..steps {
-        r += r_wi;
-        g += g_wi;
-        b += b_wi;
-        interpolated_spectrum.push((r.clone(), g.clone(), b.clone()));
+    pub fn is_hex(code: String) -> bool {
+        let code = code.trim_start_matches('#');
+        (code.len() == 3 || code.len() == 6 || code.len() == 8) && code.chars().all(|c| c.is_ascii_hexdigit())
     }
 
+    pub fn as_rgb(hex: String) -> Option<Rgb<u8>> {
+        let hex = hex.trim_start_matches('#');
 
+        let (r, g, b, a) = match hex.len() {
+            3 => {
+                let r = u8::from_str_radix(&hex[0..1].repeat(2), 16).ok()?;
+                let g = u8::from_str_radix(&hex[1..2].repeat(2), 16).ok()?;
+                let b = u8::from_str_radix(&hex[2..3].repeat(2), 16).ok()?;
+                (r, g, b, 255)
+            }
+            6 => {
+                let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+                let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+                let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+                (r, g, b, 255)
+            }
+            8 => {
+                let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+                let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+                let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+                let a = u8::from_str_radix(&hex[6..8], 16).ok()?;
+                (r, g, b, a)
+            }
+            _ => return None,
+        };
 
-    // builds the interpolation spectrum from the base color to black
-    let (mut r, mut g, mut b) = base_color.clone();
-    for _ in 0..steps {
-        r += r_bi;
-        g += g_bi;
-        b += b_bi;
-        interpolated_spectrum.push((r.clone(), g.clone(), b.clone()));
+        Some(Rgb([r, g, b]))
     }
 
-
-
-    // turns the interpolation spectrum to an Rgb spectrum
-    let mut spectrum = Vec::new();
-    for interpolated_color in interpolated_spectrum.iter_mut() {
-        let (r_i, g_i, b_i) = interpolated_color;
-        let new_color = Rgb([r_i.round() as u8, g_i.round() as u8, b_i.round() as u8]);
-        spectrum.push(new_color);
+    pub fn remove_duplicates_unordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>) -> Vec<T> {
+        let set: HashSet<_> = data.into_iter().collect();
+        set.into_iter().collect()
     }
 
+    fn get_distance_score(color_1: Rgb<u8>, color_2: Rgb<u8>) -> f32 {
+        let r_score = ((color_1[0] as i32 - color_2[0] as i32) as f32).abs() / 0.299;
+        let g_score = ((color_1[1] as i32 - color_2[1] as i32) as f32).abs() / 0.587;
+        let b_score = ((color_1[2] as i32 - color_2[2] as i32) as f32).abs() / 0.114;
 
+        r_score.powi(2) + g_score.powi(2) + b_score.powi(2)
+    }
 
-    // removes duplicates from the spectrum
-    spectrum = remove_duplicates_unordered(spectrum);
+    pub fn get_closest_color(pallet: &Vec<Rgb<u8>>, color: Rgb<u8>) -> Rgb<u8> {
+        if pallet.is_empty() { return color; }
 
+        let mut closest_color_index = 0;
+        let mut closest_color_distance = f32::MAX;
 
-
-    // returns the spectrum
-    spectrum
-}
-
-pub fn get_closest_color(pallet: &Vec<Rgb<u8>>, color: Rgb<u8>) -> Rgb<u8> {
-    if pallet.is_empty() { return color; }
-
-    let mut closest_color_index = 0;
-    let mut closest_color_distance = f32::MAX;
-
-    for i in 0..pallet.len() {
-        let distance = get_distance(color, pallet[i]);
-        if distance < closest_color_distance {
-            closest_color_index = i;
-            closest_color_distance = distance;
+        for i in 0..pallet.len() {
+            let distance = get_distance_score(color, pallet[i]);
+            if distance < closest_color_distance {
+                closest_color_index = i;
+                closest_color_distance = distance;
+            }
         }
+
+        pallet[closest_color_index]
     }
 
-    pallet[closest_color_index]
-}
+    fn get_colors_between(color_1: Rgb<u8>, color_2: Rgb<u8>) -> Vec<Rgb<u8>> {
+        // step information
+        let r_difference = (color_1[0] as f64 - color_2[0] as f64) / interpolation_steps() as f64;
+        let g_difference = (color_1[1] as f64 - color_2[1] as f64) / interpolation_steps() as f64;
+        let b_difference = (color_1[2] as f64 - color_2[2] as f64) / interpolation_steps() as f64;
+        let mut spectrum = vec![];
 
-pub fn get_distance(color_1: Rgb<u8>, color_2: Rgb<u8>) -> f32 {
-    let r_dist = ((color_1[0] as i32 - color_2[0] as i32) as f32).abs();
-    let g_dist = ((color_1[1] as i32 - color_2[1] as i32) as f32).abs();
-    let b_dist = ((color_1[2] as i32 - color_2[2] as i32) as f32).abs();
+        // getting the spectrum
+        let mut current_color = color_1;
+        for _ in 0..=interpolation_steps() { // todo: verify that this does not add one color past color_2
+            spectrum.push(current_color.clone());
+            current_color[0] = (r_difference + current_color[0] as f64) as u8;
+            current_color[1] = (g_difference + current_color[1] as f64) as u8;
+            current_color[2] = (b_difference + current_color[2] as f64) as u8;
+        }
 
-    r_dist.powi(2) + g_dist.powi(2) + b_dist.powi(2)
+        // removes duplicates from the spectrum
+        spectrum = remove_duplicates_unordered(spectrum);
+
+        // returns the spectrum
+        spectrum
+    }
+
+    pub fn get_1d_spectrum(color: Rgb<u8>) -> Vec<Rgb<u8>> {
+        // getting the spectrum
+        let mut spectrum = vec![];
+        spectrum.extend(get_colors_between(color, white()));
+        spectrum.extend(get_colors_between(color, black()));
+
+        // removes duplicates from the spectrum
+        spectrum = remove_duplicates_unordered(spectrum);
+
+        // returns the spectrum
+        spectrum
+    }
+
+    pub fn get_2d_spectrum(color_1: Rgb<u8>, color_2: Rgb<u8>) -> Vec<Rgb<u8>> {
+        // I do not understand this code.
+        // It was generated by ChatGPT and styled by me.
+        // - Donnovin
+
+        // build the four boundary lines
+        let color_1_to_black = get_colors_between(color_1, black());
+        let color_1_to_white = get_colors_between(color_1, white());
+        let color_2_to_black = get_colors_between(color_2, black());
+        let color_2_to_white = get_colors_between(color_2, white());
+
+        let mut spectrum = vec![];
+
+        // interpolate using black as anchor
+        for i in 0..interpolation_steps().min(color_1_to_black.len()).min(color_2_to_black.len()) {
+            let color_1 = color_1_to_black[i];
+            let color_2 = color_2_to_black[i];
+
+            spectrum.extend(get_colors_between(color_1, color_2));
+        }
+
+        // interpolate using white as anchor
+        for i in 0..interpolation_steps().min(color_1_to_white.len()).min(color_2_to_white.len()) {
+            let color_1 = color_1_to_white[i];
+            let color_2 = color_2_to_white[i];
+
+            spectrum.extend(get_colors_between(color_1, color_2));
+        }
+
+        // include boundary colors explicitly
+        spectrum.push(color_1);
+        spectrum.push(color_2);
+
+        // remove duplicates
+        spectrum = remove_duplicates_unordered(spectrum);
+
+        spectrum
+    }
+
+    pub fn get_3d_spectrum(color_1: Rgb<u8>, color_2: Rgb<u8>, color_3: Rgb<u8>) -> Vec<Rgb<u8>> {
+        // creating the spectrum
+        let mut spectrum = vec![];
+        spectrum.extend(get_2d_spectrum(color_1, color_2));
+        spectrum.extend(get_2d_spectrum(color_2, color_3));
+        spectrum.extend(get_2d_spectrum(color_3, color_1));
+        spectrum = remove_duplicates_unordered(spectrum);
+
+        for b in 0..=255 {
+            let inside_colors = get_inside_colors_at_blue_value(&spectrum, b);
+            spectrum.extend(inside_colors);
+        }
+
+        // removes duplicates from the spectrum
+        spectrum = remove_duplicates_unordered(spectrum);
+
+        // returns the spectrum
+        spectrum
+    }
+
+    fn get_inside_colors_at_blue_value(all_edge_colors: &Vec<Rgb<u8>>, blue_value: u8) -> Vec<Rgb<u8>> {
+        // I do not understand this code.
+        // It was generated by ChatGPT and styled by me.
+        // - Donnovin
+
+        let mut inside_colors = vec![];
+
+        let mut edge_colors = vec![];
+        for color in all_edge_colors {
+            if color[2] == blue_value { edge_colors.push(color); }
+        }
+        if edge_colors.is_empty() { return inside_colors; }
+
+        let mut lowest_r = 255;
+        let mut lowest_g = 255;
+        let mut highest_r = 0;
+        let mut highest_g = 0;
+        for blue_match in &edge_colors {
+            lowest_r = lowest_r.min(blue_match[0]);
+            lowest_g = lowest_g.min(blue_match[1]);
+            highest_r = highest_r.max(blue_match[0]);
+            highest_g = highest_g.max(blue_match[1]);
+        }
+
+        for r in lowest_r..=highest_r {
+            for g in lowest_g..=highest_g {
+                let mut inside = true;
+
+                for i in 0..edge_colors.len() {
+                    let a = edge_colors[i];
+                    let b = edge_colors[(i + 1) % edge_colors.len()];
+
+                    let cross =
+                        (r - a[0]) * (b[1] - a[1]) -
+                            (g - a[1]) * (b[0] - a[0]);
+
+                    if cross < 0 {
+                        inside = false;
+                        break;
+                    }
+                }
+
+                if inside {
+                    inside_colors.push(Rgb([r, g, blue_value]));
+                }
+            }
+        }
+
+        inside_colors
+    }
 }

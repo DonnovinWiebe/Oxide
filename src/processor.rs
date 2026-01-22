@@ -8,7 +8,7 @@ use image::{GenericImageView, ImageBuffer, ImageResult, Pixel, Rgb};
 use ratatui::prelude::{Backend, CrosstermBackend};
 use ratatui::Terminal;
 use crate::processor::guide::{ProcessingGuide, ProcessingStep, ProcessingStepTypes};
-use crate::processor::tooling::{get_closest_color, get_spectrum, remove_duplicates_unordered};
+use crate::processor::tooling::pallet::*;
 use crate::ui::{render_current_page, render_loading, render_progress};
 
 pub enum Processors {
@@ -125,7 +125,7 @@ impl EditProcessor for MonochromaticEdit {
         let base_color_hex_result = self.guide.steps[0].as_hex();
         if base_color_hex_result.is_some() {
             self.base_color_hex = base_color_hex_result.unwrap();
-            self.base_color_rgb = tooling::as_rgb(self.base_color_hex.clone()).unwrap();
+            self.base_color_rgb = as_rgb(self.base_color_hex.clone()).unwrap();
         }
         else { return; }
 
@@ -141,20 +141,19 @@ impl EditProcessor for MonochromaticEdit {
         
         let source_image_result = image::open(self.source_image_path.clone());
         if let ImageResult::Ok(source_image) = source_image_result {
+            // clearing for processing render loop
+            let _ = terminal.clear();
 
             // information
-            let _ = terminal.clear();
             let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
             let (width, height) = source_image.dimensions();
             let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
 
             // getting the colors
-            let _ = terminal.clear();
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let spectrum = get_spectrum(self.base_color_rgb);
+            let spectrum = get_1d_spectrum(self.base_color_rgb);
 
             // pixel information
-            let _ = terminal.clear();
             let _ = terminal.draw(|frame| render_loading(frame, "Loading pixels...".to_string()));
             let pixel_count = width * height;
             let mut pixels_edited = 0;
@@ -171,11 +170,13 @@ impl EditProcessor for MonochromaticEdit {
                     pixels_edited += 1;
                     if pixels_edited % 1000 == 0 {
                         let percentage = (pixels_edited as f64 / pixel_count as f64) * 100.0;
-                        let _ = terminal.clear();
                         let _ = terminal.draw(|frame| render_progress(frame, percentage));
                     }
                 }
             }
+
+            // clearing after processing render loop
+            let _ = terminal.clear();
 
             // returns the new image
             return Some(new_image)
@@ -251,12 +252,12 @@ impl EditProcessor for BichromaticEdit {
         let base_color_hex_2_result = self.guide.steps[1].as_hex();
         if base_color_hex_1_result.is_some() {
             self.base_color_1_hex = base_color_hex_1_result.unwrap();
-            self.base_color_1_rgb = tooling::as_rgb(self.base_color_1_hex.clone()).unwrap();
+            self.base_color_1_rgb = as_rgb(self.base_color_1_hex.clone()).unwrap();
         }
         else { return; }
         if base_color_hex_2_result.is_some() {
             self.base_color_2_hex = base_color_hex_2_result.unwrap();
-            self.base_color_2_rgb = tooling::as_rgb(self.base_color_2_hex.clone()).unwrap();
+            self.base_color_2_rgb = as_rgb(self.base_color_2_hex.clone()).unwrap();
         }
         else { return; }
         
@@ -272,22 +273,21 @@ impl EditProcessor for BichromaticEdit {
 
         let source_image_result = image::open(self.source_image_path.clone());
         if let ImageResult::Ok(source_image) = source_image_result {
+            // clearing for processing render loop
+            let _ = terminal.clear();
 
             // information
-            let _ = terminal.clear();
             let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
             let (width, height) = source_image.dimensions();
             let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
 
             // getting the colors
-            let _ = terminal.clear();
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_spectrum(self.base_color_1_rgb);
-            spectrum.extend(get_spectrum(self.base_color_2_rgb));
+            let mut spectrum = get_1d_spectrum(self.base_color_1_rgb);
+            spectrum.extend(get_1d_spectrum(self.base_color_2_rgb));
             spectrum = remove_duplicates_unordered(spectrum);
 
             // pixel information
-            let _ = terminal.clear();
             let _ = terminal.draw(|frame| render_loading(frame, "Loading pixels...".to_string()));
             let pixel_count = width * height;
             let mut pixels_edited = 0;
@@ -304,12 +304,14 @@ impl EditProcessor for BichromaticEdit {
                     pixels_edited += 1;
                     if pixels_edited % 1000 == 0 {
                         let percentage = (pixels_edited as f64 / pixel_count as f64) * 100.0;
-                        let _ = terminal.clear();
                         let _ = terminal.draw(|frame| render_progress(frame, percentage));
                     }
                 }
             }
 
+            // clearing after processing render loop
+            let _ = terminal.clear();
+            
             // returns the new image
             return Some(new_image)
         }
