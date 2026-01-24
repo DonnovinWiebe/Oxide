@@ -6,12 +6,15 @@ use crate::processor::tooling::pallet::*;
 pub enum ProcessingStepTypes {
     /// A standard color input (as HEX with #).
     Color,
+    /// No input required.
+    NoInput,
 }
 impl ProcessingStepTypes {
     /// Checks if a given input is valid for the given step type.
     fn is_step_valid(&self, input: String) -> bool {
         match self {
             ProcessingStepTypes::Color => is_hex(input),
+            ProcessingStepTypes::NoInput => true,
         }
     }
 }

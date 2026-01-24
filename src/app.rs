@@ -216,6 +216,9 @@ impl App {
                                 Processors::Trichromatic => {
                                     self.selected_processor = Some(Box::new(TrichromaticEdit::new(self.selected_image_path.clone().unwrap())));
                                 }
+                                Processors::AutomaticMonochromatic => {
+                                    self.selected_processor = Some(Box::new(AutomaticMonochromaticEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
                             }
                             
                             self.current_page = Pages::Preprocessing;

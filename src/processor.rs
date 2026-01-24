@@ -10,6 +10,7 @@ use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
 use rayon::prelude::*;
 use crate::processor::guide::*;
+use crate::processor::tooling::get_average_color;
 use crate::processor::tooling::pallet::*;
 use crate::ui::*;
 
@@ -19,6 +20,7 @@ pub enum Processors {
     Bichromatic,
     BichromaticBlend,
     Trichromatic,
+    AutomaticMonochromatic,
 }
 impl Processors {
     /// Returns the name of a given processor type.
@@ -28,11 +30,12 @@ impl Processors {
             Processors::Bichromatic => "Bichromatic".to_string(),
             Processors::BichromaticBlend => "Bichromatic Blend".to_string(),
             Processors::Trichromatic => "Trichromatic".to_string(),
+            Processors::AutomaticMonochromatic => "Automatic".to_string(),
         }
     }
 
     /// Returns the number of available processors.
-    pub fn number_of_processors() -> usize { 4 }
+    pub fn number_of_processors() -> usize { 5 }
 
     /// Gets the processor type that corresponds to a given index.
     pub fn get_processor(selection: usize) -> Processors {
@@ -41,6 +44,7 @@ impl Processors {
             1 => Processors::Bichromatic,
             2 => Processors::BichromaticBlend,
             3 => Processors::Trichromatic,
+            4 => Processors::AutomaticMonochromatic,
             _ => panic!("Invalid processor selection: {}", selection),
         }
     }
@@ -175,7 +179,7 @@ impl EditProcessor for MonochromaticEdit {
                     row.push((x, y, new_pixel));
 
                     let pixels_edited_internal = pixels_edited.fetch_add(1, Ordering::Relaxed);
-                    if pixels_edited_internal % 10000 == 0 {
+                    if pixels_edited_internal % 30000 == 0 {
                         let percentage = (pixels_edited_internal as f64 / pixel_count as f64) * 100.0;
                         if let Ok(mut terminal_internal) = terminal_mutex.lock() {
                             let _ = terminal_internal.draw(|frame| render_progress(frame, percentage));
@@ -319,7 +323,7 @@ impl EditProcessor for BichromaticEdit {
                     row.push((x, y, new_pixel));
 
                     let pixels_edited_internal = pixels_edited.fetch_add(1, Ordering::Relaxed);
-                    if pixels_edited_internal % 10000 == 0 {
+                    if pixels_edited_internal % 30000 == 0 {
                         let percentage = (pixels_edited_internal as f64 / pixel_count as f64) * 100.0;
                         if let Ok(mut terminal_internal) = terminal_mutex.lock() {
                             let _ = terminal_internal.draw(|frame| render_progress(frame, percentage));
@@ -461,7 +465,7 @@ impl EditProcessor for BichromaticBlendEdit {
                     row.push((x, y, new_pixel));
 
                     let pixels_edited_internal = pixels_edited.fetch_add(1, Ordering::Relaxed);
-                    if pixels_edited_internal % 10000 == 0 {
+                    if pixels_edited_internal % 30000 == 0 {
                         let percentage = (pixels_edited_internal as f64 / pixel_count as f64) * 100.0;
                         if let Ok(mut terminal_internal) = terminal_mutex.lock() {
                             let _ = terminal_internal.draw(|frame| render_progress(frame, percentage));
@@ -619,7 +623,122 @@ impl EditProcessor for TrichromaticEdit {
                     row.push((x, y, new_pixel));
 
                     let pixels_edited_internal = pixels_edited.fetch_add(1, Ordering::Relaxed);
-                    if pixels_edited_internal % 10000 == 0 {
+                    if pixels_edited_internal % 30000 == 0 {
+                        let percentage = (pixels_edited_internal as f64 / pixel_count as f64) * 100.0;
+                        if let Ok(mut terminal_internal) = terminal_mutex.lock() {
+                            let _ = terminal_internal.draw(|frame| render_progress(frame, percentage));
+                        }
+                    }
+                }
+                row
+            }).collect();
+
+            // freeing the terminal
+            let terminal = Arc::try_unwrap(terminal_mutex).unwrap().into_inner().unwrap();
+
+            // filling the new image with the new pixels
+            let _ = terminal.draw(|frame| render_loading(frame, "Filling new image...".to_string()));
+            for (x, y, pixel) in rows {
+                new_image.put_pixel(x, y, pixel);
+            }
+
+            // clearing after processing render loop
+            let _ = terminal.clear();
+
+            // returns the new image
+            return Some(new_image)
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image into a single color spectrum.
+pub struct AutomaticMonochromaticEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl AutomaticMonochromaticEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> AutomaticMonochromaticEdit {
+        AutomaticMonochromaticEdit {
+            source_image_path,
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for AutomaticMonochromaticEdit {
+    fn get_color_set(&self) -> String {
+        "Automatic".to_string()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            // clearing for processing render loop
+            let _ = terminal.clear();
+
+            // information
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
+            let (width, height) = source_image.dimensions();
+            let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+
+            // getting the colors
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let spectrum = get_1d_spectrum(get_average_color(&source_image));
+
+            // pixel information
+            let _ = terminal.draw(|frame| render_loading(frame, "Editing pixels...".to_string()));
+            let pixel_count = width * height;
+            let pixels_edited = AtomicUsize::new(0);
+            let terminal_mutex = Arc::new(Mutex::new(terminal));
+
+            // editing pixel by pixel and collecting the new pixels
+            let rows: Vec<(u32, u32, Rgb<u8>)> = (0..height).into_par_iter().flat_map(|y| {
+                let mut row = vec![];
+                for x in 0..width {
+                    let pixel = source_image.get_pixel(x, y).to_rgb();
+                    let new_pixel = get_closest_color(&spectrum, pixel);
+
+                    row.push((x, y, new_pixel));
+
+                    let pixels_edited_internal = pixels_edited.fetch_add(1, Ordering::Relaxed);
+                    if pixels_edited_internal % 30000 == 0 {
                         let percentage = (pixels_edited_internal as f64 / pixel_count as f64) * 100.0;
                         if let Ok(mut terminal_internal) = terminal_mutex.lock() {
                             let _ = terminal_internal.draw(|frame| render_progress(frame, percentage));

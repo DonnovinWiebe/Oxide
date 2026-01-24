@@ -1,3 +1,5 @@
+use image::{DynamicImage, GenericImageView, Rgb};
+
 /// Module containing functions for working with colors and color palettes.
 pub mod pallet {
     use std::cmp::min;
@@ -222,4 +224,23 @@ pub mod pallet {
 
         inside_colors
     }
+}
+
+/// Gets the average color from an image.
+pub fn get_average_color(image: &DynamicImage) -> Rgb<u8> {
+    let (width, height) = image.dimensions();
+    let pixel_count = (width * height) as u128;
+    let mut r: u128 = 0;
+    let mut g: u128 = 0;
+    let mut b: u128 = 0;
+
+    for y in 0..height {
+        for x in 0..width {
+            r += image.get_pixel(x, y)[0] as u128;
+            g += image.get_pixel(x, y)[1] as u128;
+            b += image.get_pixel(x, y)[2] as u128;
+        }
+    }
+
+    Rgb([(r / pixel_count) as u8, (g / pixel_count) as u8, (b / pixel_count) as u8])
 }
