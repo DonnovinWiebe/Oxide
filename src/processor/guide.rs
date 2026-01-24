@@ -6,15 +6,12 @@ use crate::processor::tooling::pallet::*;
 pub enum ProcessingStepTypes {
     /// A standard color input (as HEX with #).
     Color,
-    /// The number of steps to use for color interpolation.
-    ColorSmoothing,
 }
 impl ProcessingStepTypes {
     /// Checks if a given input is valid for the given step type.
     fn is_step_valid(&self, input: String) -> bool {
         match self {
             ProcessingStepTypes::Color => is_hex(input),
-            ProcessingStepTypes::ColorSmoothing => input.parse::<usize>().is_ok(),
         }
     }
 }
@@ -86,13 +83,6 @@ impl ProcessingStep {
     /// Returns the input as a hex.
     pub fn as_hex(&self) -> Option<String> {
         if is_hex(self.input.clone()) { return Some(self.input.clone()); }
-        None
-    }
-
-    /// Returns the input as a usize (for color smoothing interpolation).
-    pub fn as_color_smoothing_input(&self) -> Option<usize> {
-        let value = self.input.parse::<usize>();
-        if value.is_ok() { return Some(value.unwrap()) }
         None
     }
 }

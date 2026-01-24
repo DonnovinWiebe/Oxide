@@ -1,19 +1,26 @@
+/// Module containing functions for working with colors and color palettes.
 pub mod pallet {
     use std::cmp::min;
     use std::collections::HashSet;
-    use image::{Pixel, Rgb};
+    use image::Rgb;
     use rayon::prelude::*;
 
-    fn interpolation_steps() -> usize { 442 } // this will catch every 8-bit color between any 2 8-bit colors
+    /// Gets the standard step count required to catch all colors between any two different colors.
+    fn interpolation_steps() -> usize { 442 }
+
+    /// Returns a standard white color.
     fn white() -> Rgb<u8> { Rgb([255, 255, 255]) }
+
+    /// Returns a standard black color.
     fn black() -> Rgb<u8> { Rgb([0, 0, 0]) }
 
-
+    /// Checks if a given input is a valid HEX color code.
     pub fn is_hex(code: String) -> bool {
         let code = code.trim_start_matches('#');
         (code.len() == 3 || code.len() == 6 || code.len() == 8) && code.chars().all(|c| c.is_ascii_hexdigit())
     }
 
+    /// Converts a HEX color code to an RGB color.
     pub fn as_rgb(hex: String) -> Option<Rgb<u8>> {
         let hex = hex.trim_start_matches('#');
 
@@ -43,16 +50,20 @@ pub mod pallet {
         Some(Rgb([r, g, b]))
     }
 
+    /// Removes duplicate colors from a given list of colors while maintaining the original order.
     pub fn remove_duplicates_ordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>) -> Vec<T> {
         let mut seen = HashSet::new();
         data.into_iter().filter(|item| seen.insert(item.clone())).collect()
     }
 
+    /// Removes duplicate colors from a given list of colors without maintaining the original order.
     pub fn remove_duplicates_unordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>) -> Vec<T> {
         let set: HashSet<_> = data.into_iter().collect();
         set.into_iter().collect()
     }
 
+    /// Gets a distance-related score between two colors.
+    /// Greater score = greater distance.
     fn get_distance_score(color_1: Rgb<u8>, color_2: Rgb<u8>) -> f32 {
         let r_score = ((color_1[0] as i32 - color_2[0] as i32) as f32).abs() / 0.299;
         let g_score = ((color_1[1] as i32 - color_2[1] as i32) as f32).abs() / 0.587;
@@ -61,6 +72,7 @@ pub mod pallet {
         r_score.powi(2) + g_score.powi(2) + b_score.powi(2)
     }
 
+    /// Returns the closest color from a given pallet to a given color.
     pub fn get_closest_color(pallet: &Vec<Rgb<u8>>, color: Rgb<u8>) -> Rgb<u8> {
         if pallet.is_empty() { return color; }
 
@@ -73,13 +85,14 @@ pub mod pallet {
                 closest_distance_score = distance_score;
                 closest_color = palette_color;
 
-                if distance_score == 0.0 { break; } // Early exit after exact match
+                if distance_score == 0.0 { break; } // Early exit after an exact match
             }
         }
 
         closest_color
     }
 
+    /// Gets all the colors between two other colors.
     fn get_colors_between(color_1: Rgb<u8>, color_2: Rgb<u8>) -> Vec<Rgb<u8>> {
         // step information
         let r_difference = (color_2[0] as f64 - color_1[0] as f64) / interpolation_steps() as f64;
@@ -91,9 +104,9 @@ pub mod pallet {
         let mut current_color = (color_1[0] as f64, color_1[1] as f64, color_1[2] as f64);
         for _ in 0..=interpolation_steps() {
             spectrum.push(Rgb([current_color.0.round() as u8, current_color.1.round() as u8, current_color.2.round() as u8]));
-            current_color.0 = (r_difference + current_color.0);
-            current_color.1 = (g_difference + current_color.1);
-            current_color.2 = (b_difference + current_color.2);
+            current_color.0 = r_difference + current_color.0;
+            current_color.1 = g_difference + current_color.1;
+            current_color.2 = b_difference + current_color.2;
         }
 
         // removes duplicates from the spectrum
@@ -103,6 +116,8 @@ pub mod pallet {
         spectrum
     }
 
+    /// Gets the spectrum for a given color.
+    /// Each spectrum is a smooth gradient from white -> color -> black.
     pub fn get_1d_spectrum(color: Rgb<u8>) -> Vec<Rgb<u8>> {
         // getting the spectrum
         let mut spectrum = vec![];
@@ -116,6 +131,8 @@ pub mod pallet {
         spectrum
     }
 
+    /// Gets the spectrum for a given pair of colors.
+    /// Each spectrum is a region of 3d color space that envelopes white -> colors -> black in one or two connected planes.
     pub fn get_2d_spectrum(color_1: Rgb<u8>, color_2: Rgb<u8>) -> Vec<Rgb<u8>> {
         let spectrum_1 = get_1d_spectrum(color_1);
         let spectrum_2 = get_1d_spectrum(color_2);
@@ -132,6 +149,8 @@ pub mod pallet {
         spectrum
     }
 
+    /// Gets the spectrum for a given triplet of colors.
+    /// Each spectrum is a region of 3d color space that envelopes white -> colors -> black in a single region.
     fn get_3d_spectrum(color_1: Rgb<u8>, color_2: Rgb<u8>, color_3: Rgb<u8>) -> Vec<Rgb<u8>> {
         // creating the spectrum
         let mut spectrum = vec![];
@@ -152,6 +171,7 @@ pub mod pallet {
         spectrum
     }
 
+    /// Returns the colors in 3d color space that are inside the listed color points at the given blue coordinate plane.
     fn get_inside_colors_at_blue_value(all_edge_colors: &Vec<Rgb<u8>>, blue_value: u8) -> Vec<Rgb<u8>> {
         // I do not understand this code.
         // It was generated by ChatGPT and styled by me.

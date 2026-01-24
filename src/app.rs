@@ -1,9 +1,8 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use ratatui::crossterm::event;
 use ratatui::crossterm::event::Event;
 use ratatui::prelude::*;
-use crate::processor;
 use crate::ui::{render_current_page, Instruction};
 use std::io::{Error, Result};
 use std::string::String;
@@ -12,11 +11,10 @@ use img_parts::ImageEXIF;
 use ratatui::backend::Backend;
 use ratatui::Terminal;
 use crate::processor::*;
-use crate::processor::guide::{ProcessingGuide, ProcessingStep};
-use crate::processor::Processors::Monochromatic;
 use img_parts::jpeg::Jpeg;
 use img_parts::png::Png;
 
+/// The list of pages in the application.
 #[derive(Copy, Clone)]
 pub enum Pages {
     Launching,
@@ -28,23 +26,29 @@ pub enum Pages {
 
 
 
+/// The application state container.
 pub struct App {
-    // current page
+    /// The current page.
     pub current_page: Pages,
-    // image selection
+    /// The source directory for input images.
     pub source_directory: PathBuf,
+    /// The list of paths to images in the source directory.
     pub source_image_paths: Vec<PathBuf>,
+    /// The output directory for edited images.
     pub output_directory: PathBuf,
-    current_image_path_selection: usize, // by index
+    /// The current image selection used during selection.
+    current_image_path_selection: usize,
+    /// The selected image path.
     selected_image_path: Option<PathBuf>,
-    // processor selection
+    /// The current processor selection used during selection.
     pub current_processor_selection: usize,
+    /// The selected processor.
     pub selected_processor: Option<Box<dyn EditProcessor>>,
-    // new image
+    /// The new image for editing.
     pub new_image: Option<ImageBuffer<Rgb<u8>, Vec<u8>>>,
 }
-
 impl App {
+    /// Returns a new application state container.
     pub fn new(source_directory: PathBuf, output_directory: PathBuf, source_image_paths: Vec<PathBuf>) -> App {
         let mut app = App {
             current_page: Pages::Launching,
@@ -62,6 +66,7 @@ impl App {
         app
     }
 
+    /// Returns the name of the current page.
     pub fn current_page_name(&self) -> String {
         match self.current_page {
             Pages::Launching => "Launching".to_string(),
@@ -72,6 +77,7 @@ impl App {
         }
     }
 
+    /// Updates the selected image path based on the current selection.
     fn update_selected_image_path(&mut self) {
         if self.source_image_paths.is_empty() {
             self.selected_image_path = None;
@@ -81,6 +87,7 @@ impl App {
         }
     }
 
+    /// Selects the next image path in the source list.
     pub fn select_next_source_image_path(&mut self) {
         if self.current_image_path_selection >= self.source_image_paths.len() - 1 {
             self.current_image_path_selection = 0;
@@ -90,6 +97,7 @@ impl App {
         }
     }
 
+    /// Selects the previous image path in the source list.
     pub fn select_previous_source_image_path(&mut self) {
         if self.current_image_path_selection == 0 {
             self.current_image_path_selection = self.source_image_paths.len() - 1;
@@ -99,12 +107,14 @@ impl App {
         }
     }
 
+    /// Returns the selected image filename.
     pub fn print_selected_image_filename(&self) -> String {
         if self.source_image_paths.is_empty() { return "Error: No images to edit".to_string() }
 
         self.source_image_paths[self.current_image_path_selection].clone().file_name().unwrap().to_string_lossy().to_string()
     }
 
+    /// Selects the next processor in the list.
     pub fn select_next_processor(&mut self) {
         if self.current_processor_selection >= Processors::number_of_processors() - 1 {
             self.current_processor_selection = 0;
@@ -115,6 +125,7 @@ impl App {
         self.update_selected_image_path();
     }
 
+    /// Selects the previous processor in the list.
     pub fn select_previous_processor(&mut self) {
         if self.current_processor_selection == 0 {
             self.current_processor_selection = Processors::number_of_processors() - 1;
@@ -125,6 +136,7 @@ impl App {
         self.update_selected_image_path();
     }
 
+    /// Resets the application to the launching page and resets the state.
     pub fn reset(&mut self) {
         self.current_page = Pages::SelectingImageSource;
         self.current_image_path_selection = 0;
@@ -135,16 +147,10 @@ impl App {
 
 
 
+    /// Runs the application.
     pub fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> where Error: From<<B as Backend>::Error> {
         // running
         loop {
-            // pre-render
-            let footer_height = Instruction::get_instructions_for(&self.current_page).len() as u16 + 2;
-            let header_height = 4;
-            let page_height = terminal.size()?.height - footer_height - header_height; // todo check if necessary
-
-
-
             // rendering
             terminal.clear()?;
             terminal.draw(|frame| render_current_page(frame, self))?;
@@ -225,9 +231,9 @@ impl App {
 
 
                     Pages::Preprocessing => {
-                        // checks if processor is valid
+                        // checks if the processor is valid
                         if let Some(processor) = &mut self.selected_processor {
-                            // trying to finish step
+                            // trying to finish the current step
                             if key.code == Instruction::confirm_instruction().keybind {
                                 processor.try_finish_current_step();
                                 processor.try_populate();
@@ -259,7 +265,7 @@ impl App {
 
 
                                     // saving the new image and working with potential errors
-                                    match new_image.save(&output_path) { // todo: make this more standard standard practice
+                                    match new_image.save(&output_path) {
                                         // did save
                                         Ok(_) => {
                                             // getting the image type
@@ -314,7 +320,7 @@ impl App {
                             }
                         }
 
-                        // resets if processor is None
+                        // resets if the processor is None
                         else { self.reset(); }
                     }
 
@@ -338,10 +344,12 @@ impl App {
 
 
 
+/// Module containing terminal-related tools and utilities.
 pub mod term_tools {
     use ratatui::crossterm::event;
     use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
+    /// Modifies a string-based number input field from a key event.
     pub fn numpad(field: &str, input: KeyEvent) -> String {
         if input.kind == event::KeyEventKind::Release { return field.to_string(); }
 
@@ -364,6 +372,7 @@ pub mod term_tools {
         field
     }
 
+    /// Modifies a string-based text input field from a key event.
     pub fn keypad(field: &str, input: KeyEvent) -> String {
         if input.kind == event::KeyEventKind::Release {}
 

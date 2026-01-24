@@ -1,19 +1,19 @@
 pub mod guide;
 pub mod tooling;
 
-use std::error::Error;
-use std::io::{Stdout, Write};
+use std::io::Stdout;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use image::{GenericImageView, ImageBuffer, ImageResult, Pixel, Rgb};
-use ratatui::prelude::{Backend, CrosstermBackend};
+use image::{GenericImageView, ImageBuffer, Pixel, Rgb};
+use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
 use rayon::prelude::*;
-use crate::processor::guide::{ProcessingGuide, ProcessingStep, ProcessingStepTypes};
+use crate::processor::guide::*;
 use crate::processor::tooling::pallet::*;
-use crate::ui::{render_current_page, render_loading, render_progress};
+use crate::ui::*;
 
+/// The list of available processors.
 pub enum Processors {
     Monochromatic,
     Bichromatic,
@@ -21,6 +21,7 @@ pub enum Processors {
     Trichromatic,
 }
 impl Processors {
+    /// Returns the name of a given processor type.
     pub fn name(&self) -> String {
         match self {
             Processors::Monochromatic => "Monochromatic".to_string(),
@@ -30,8 +31,10 @@ impl Processors {
         }
     }
 
+    /// Returns the number of available processors.
     pub fn number_of_processors() -> usize { 4 }
 
+    /// Gets the processor type that corresponds to a given index.
     pub fn get_processor(selection: usize) -> Processors {
         match selection {
             0 => Processors::Monochromatic,
@@ -67,9 +70,6 @@ pub trait EditProcessor {
 
     /// Populates the processor steps from the guide if the guide is ready.
     fn try_populate(&mut self);
-
-    /// Returns if the processor is ready to process the image.
-    fn is_ready(&self) -> bool;
 
     /// Processes the image and returns the new image.
     fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) ->  Option<ImageBuffer<Rgb<u8>, Vec<u8>>>;
@@ -142,15 +142,11 @@ impl EditProcessor for MonochromaticEdit {
         self.is_ready = true;
     }
 
-    fn is_ready(&self) -> bool {
-        self.is_ready
-    }
-
     fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         if !self.is_ready { return None; }
         
         let source_image_result = image::open(self.source_image_path.clone());
-        if let ImageResult::Ok(source_image) = source_image_result {
+        if let Ok(source_image) = source_image_result {
             // clearing for processing render loop
             let _ = terminal.clear();
 
@@ -275,15 +271,11 @@ impl EditProcessor for BichromaticEdit {
         self.is_ready = true;
     }
 
-    fn is_ready(&self) -> bool {
-        self.is_ready
-    }
-
     fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         if !self.is_ready { return None; }
 
         let source_image_result = image::open(self.source_image_path.clone());
-        if let ImageResult::Ok(source_image) = source_image_result {
+        if let Ok(source_image) = source_image_result {
             // clearing for processing render loop
             let _ = terminal.clear();
 
@@ -410,15 +402,11 @@ impl EditProcessor for BichromaticBlendEdit {
         self.is_ready = true;
     }
 
-    fn is_ready(&self) -> bool {
-        self.is_ready
-    }
-
     fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         if !self.is_ready { return None; }
 
         let source_image_result = image::open(self.source_image_path.clone());
-        if let ImageResult::Ok(source_image) = source_image_result {
+        if let Ok(source_image) = source_image_result {
             // clearing for processing render loop
             let _ = terminal.clear();
 
@@ -434,7 +422,7 @@ impl EditProcessor for BichromaticBlendEdit {
             // pixel information
             let _ = terminal.draw(|frame| render_loading(frame, "Editing pixels...".to_string()));
             let pixel_count = width * height;
-            let mut pixels_edited = AtomicUsize::new(0);
+            let pixels_edited = AtomicUsize::new(0);
             let terminal_mutex = Arc::new(Mutex::new(terminal));
 
             // editing pixel by pixel and collecting the new pixels
@@ -569,15 +557,11 @@ impl EditProcessor for TrichromaticEdit {
         self.is_ready = true;
     }
 
-    fn is_ready(&self) -> bool {
-        self.is_ready
-    }
-
     fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
         if !self.is_ready { return None; }
 
         let source_image_result = image::open(self.source_image_path.clone());
-        if let ImageResult::Ok(source_image) = source_image_result {
+        if let Ok(source_image) = source_image_result {
             // clearing for processing render loop
             let _ = terminal.clear();
 

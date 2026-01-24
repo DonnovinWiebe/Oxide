@@ -5,6 +5,7 @@ use ratatui::widgets::*;
 use crate::app::{App, Pages};
 use crate::processor::Processors;
 
+/// Renders the current page of the application.
 pub fn render_current_page(frame: &mut Frame, app: &App) {
     // header
     let header_block = Block::new().borders(Borders::ALL);
@@ -73,7 +74,7 @@ pub fn render_current_page(frame: &mut Frame, app: &App) {
     }
 }
 
-
+/// Renders a loading screen during processing.
 pub fn render_loading(frame: &mut Frame, info: String) {
     // header
     let header_block = Block::new().borders(Borders::ALL);
@@ -101,8 +102,7 @@ pub fn render_loading(frame: &mut Frame, info: String) {
     frame.render_widget(body, leaflets[1]);
 }
 
-
-
+/// Renders a progress indicator during processing.
 pub fn render_progress(frame: &mut Frame, percent_complete: f64) {
     // header
     let header_block = Block::new().borders(Borders::ALL);
@@ -132,20 +132,27 @@ pub fn render_progress(frame: &mut Frame, percent_complete: f64) {
 
 
 
+/// Defines a keybind instruction for the user.
 pub struct Instruction {
+    /// The keybind label.
     key: String,
+    /// A concise description of what the keybind does.
     label: String,
+    /// The keybind code to be compared to a given input.
     pub keybind: KeyCode
 }
 impl Instruction {
+    /// Returns a new instruction.
     pub fn new(key: String, label: String, keybind: KeyCode) -> Instruction { Instruction {key, label, keybind } }
 
+    /// Returns a formatted string representation of the instruction.
     fn printed(&mut self) -> String {
         let mut print = "".to_string();
         print += &format!("[{}] {}", &self.key, &self.label);
         print
     }
 
+    /// Groups a list of instructions into a list of lines.
     pub fn in_groups(instructions: Vec<Instruction>, group_limit: usize) -> Vec<Line<'static>> {
         // the lines of instructions to be returned
         let mut lines = Vec::new();
@@ -174,9 +181,9 @@ impl Instruction {
         // returns the list of lines
         lines
     }
-
-
-
+    
+    
+    
     // instructions
     pub fn select_next() -> Instruction { Instruction::new(">".to_string(), "next page".to_string(), KeyCode::Right) }
     pub fn select_previous() -> Instruction { Instruction::new("<".to_string(), "previous page".to_string(), KeyCode::Left) }
@@ -185,6 +192,7 @@ impl Instruction {
     pub fn run_again_instruction() -> Instruction { Instruction::new("R".to_string(), "run again".to_string(), KeyCode::Char('r')) }
     pub fn quit_instruction() -> Instruction { Instruction::new("Q".to_string(), "quit".to_string(), KeyCode::Char('q')) }
 
+    /// Gets the instructions for a given page.
     pub fn get_instructions_for(page: &Pages) -> Vec<Line> {
         match page {
             Pages::Launching => {
