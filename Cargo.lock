@@ -1163,6 +1163,7 @@ dependencies = [
  "img-parts",
  "kamadak-exif",
  "ratatui",
+ "rayon",
 ]
 
 [[package]]

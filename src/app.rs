@@ -11,7 +11,7 @@ use image::{ImageBuffer, Rgb};
 use img_parts::ImageEXIF;
 use ratatui::backend::Backend;
 use ratatui::Terminal;
-use crate::processor::{BichromaticEdit, EditProcessor, MonochromaticEdit, Processors};
+use crate::processor::*;
 use crate::processor::guide::{ProcessingGuide, ProcessingStep};
 use crate::processor::Processors::Monochromatic;
 use img_parts::jpeg::Jpeg;
@@ -203,6 +203,12 @@ impl App {
                                 }
                                 Processors::Bichromatic => {
                                     self.selected_processor = Some(Box::new(BichromaticEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::BichromaticBlend => {
+                                    self.selected_processor = Some(Box::new(BichromaticBlendEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::Trichromatic => {
+                                    self.selected_processor = Some(Box::new(TrichromaticEdit::new(self.selected_image_path.clone().unwrap())));
                                 }
                             }
                             
