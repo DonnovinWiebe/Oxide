@@ -3,6 +3,7 @@ use crate::processor::tooling::pallet::*;
 
 
 /// The difference kinds of steps used to set up a processor.
+#[derive(Clone, PartialEq)]
 pub enum ProcessingStepTypes {
     /// A standard color input (as HEX with #).
     Color,
@@ -33,6 +34,11 @@ impl ProcessingGuide {
     /// Creates a new guide with the given steps.
     pub fn new(steps: Vec<ProcessingStep>) -> ProcessingGuide {
         ProcessingGuide { steps, current_step: 0 }
+    }
+    
+    /// Returns the input type of the current step.
+    pub fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.steps[self.current_step].step_type.clone()
     }
 
     /// Returns the label of the current step.
