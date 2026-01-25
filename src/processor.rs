@@ -1,6 +1,7 @@
 pub mod guide;
 pub mod tooling;
 
+use std::cell::RefCell;
 use std::io::Stdout;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -10,7 +11,6 @@ use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
 use rayon::prelude::*;
 use crate::processor::guide::*;
-use crate::processor::tooling::get_average_color;
 use crate::processor::tooling::pallet::*;
 use crate::ui::*;
 
@@ -30,7 +30,7 @@ impl Processors {
             Processors::Bichromatic => "Bichromatic".to_string(),
             Processors::BichromaticBlend => "Bichromatic Blend".to_string(),
             Processors::Trichromatic => "Trichromatic".to_string(),
-            Processors::AutomaticMonochromatic => "Automatic".to_string(),
+            Processors::AutomaticMonochromatic => "Automatic Monochromatic".to_string(),
         }
     }
 
@@ -57,6 +57,9 @@ pub trait EditProcessor {
     /// Returns the set of colors used in editing the image in order to print them in the editing image filename
     fn get_color_set(&self) -> String;
 
+    /// Returns the input type of the current step.
+    fn get_current_step_type(&self) -> ProcessingStepTypes;
+    
     /// Returns the label of the current step.
     fn get_current_step_label(&self) -> String;
 
@@ -112,6 +115,10 @@ impl EditProcessor for MonochromaticEdit {
     fn get_color_set(&self) -> String {
         format!("{}", self.base_color_hex.clone())
     }
+    
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
 
     fn get_current_step_label(&self) -> String {
         self.guide.get_current_label()
@@ -151,58 +158,10 @@ impl EditProcessor for MonochromaticEdit {
 
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
-            // clearing for processing render loop
-            let _ = terminal.clear();
-
-            // information
-            let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
-            let (width, height) = source_image.dimensions();
-            let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
-
-            // getting the colors
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let spectrum = get_1d_spectrum(self.base_color_rgb);
 
-            // pixel information
-            let _ = terminal.draw(|frame| render_loading(frame, "Editing pixels...".to_string()));
-            let pixel_count = width * height;
-            let pixels_edited = AtomicUsize::new(0);
-            let terminal_mutex = Arc::new(Mutex::new(terminal));
-
-            // editing pixel by pixel and collecting the new pixels
-            let rows: Vec<(u32, u32, Rgb<u8>)> = (0..height).into_par_iter().flat_map(|y| {
-                let mut row = vec![];
-                for x in 0..width {
-                    let pixel = source_image.get_pixel(x, y).to_rgb();
-                    let new_pixel = get_closest_color(&spectrum, pixel);
-
-                    row.push((x, y, new_pixel));
-
-                    let pixels_edited_internal = pixels_edited.fetch_add(1, Ordering::Relaxed);
-                    if pixels_edited_internal % 30000 == 0 {
-                        let percentage = (pixels_edited_internal as f64 / pixel_count as f64) * 100.0;
-                        if let Ok(mut terminal_internal) = terminal_mutex.lock() {
-                            let _ = terminal_internal.draw(|frame| render_progress(frame, percentage));
-                        }
-                    }
-                }
-                row
-            }).collect();
-
-            // freeing the terminal
-            let terminal = Arc::try_unwrap(terminal_mutex).unwrap().into_inner().unwrap();
-
-            // filling the new image with the new pixels
-            let _ = terminal.draw(|frame| render_loading(frame, "Filling new image...".to_string()));
-            for (x, y, pixel) in rows {
-                new_image.put_pixel(x, y, pixel);
-            }
-
-            // clearing after processing render loop
-            let _ = terminal.clear();
-
-            // returns the new image
-            return Some(new_image)
+            return Some(process_evenly(source_image, spectrum, terminal))
         }
 
         None
@@ -249,6 +208,11 @@ impl EditProcessor for BichromaticEdit {
     fn get_color_set(&self) -> String {
         format!("{}-{}", self.base_color_1_hex.clone(), self.base_color_2_hex.clone())
     }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+    
     fn get_current_step_label(&self) -> String {
         self.guide.get_current_label()
     }
@@ -293,60 +257,12 @@ impl EditProcessor for BichromaticEdit {
 
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
-            // clearing for processing render loop
-            let _ = terminal.clear();
-
-            // information
-            let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
-            let (width, height) = source_image.dimensions();
-            let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
-
-            // getting the colors
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let mut spectrum = get_1d_spectrum(self.base_color_1_rgb);
             spectrum.extend(get_1d_spectrum(self.base_color_2_rgb));
             spectrum = remove_duplicates_unordered(spectrum);
 
-            // pixel information
-            let _ = terminal.draw(|frame| render_loading(frame, "Editing pixels...".to_string()));
-            let pixel_count = width * height;
-            let pixels_edited = AtomicUsize::new(0);
-            let terminal_mutex = Arc::new(Mutex::new(terminal));
-
-            // editing pixel by pixel and collecting the new pixels
-            let rows: Vec<(u32, u32, Rgb<u8>)> = (0..height).into_par_iter().flat_map(|y| {
-                let mut row = vec![];
-                for x in 0..width {
-                    let pixel = source_image.get_pixel(x, y).to_rgb();
-                    let new_pixel = get_closest_color(&spectrum, pixel);
-
-                    row.push((x, y, new_pixel));
-
-                    let pixels_edited_internal = pixels_edited.fetch_add(1, Ordering::Relaxed);
-                    if pixels_edited_internal % 30000 == 0 {
-                        let percentage = (pixels_edited_internal as f64 / pixel_count as f64) * 100.0;
-                        if let Ok(mut terminal_internal) = terminal_mutex.lock() {
-                            let _ = terminal_internal.draw(|frame| render_progress(frame, percentage));
-                        }
-                    }
-                }
-                row
-            }).collect();
-
-            // freeing the terminal
-            let terminal = Arc::try_unwrap(terminal_mutex).unwrap().into_inner().unwrap();
-
-            // filling the new image with the new pixels
-            let _ = terminal.draw(|frame| render_loading(frame, "Filling new image...".to_string()));
-            for (x, y, pixel) in rows {
-                new_image.put_pixel(x, y, pixel);
-            }
-
-            // clearing after processing render loop
-            let _ = terminal.clear();
-
-            // returns the new image
-            return Some(new_image)
+            return Some(process_evenly(source_image, spectrum, terminal))
         }
 
         None
@@ -391,8 +307,13 @@ impl BichromaticBlendEdit {
 }
 impl EditProcessor for BichromaticBlendEdit {
     fn get_color_set(&self) -> String {
-        format!("{}-{} blend", self.base_color_1_hex.clone(), self.base_color_2_hex.clone())
+        format!("{}-{} Blend", self.base_color_1_hex.clone(), self.base_color_2_hex.clone())
     }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+    
     fn get_current_step_label(&self) -> String {
         self.guide.get_current_label()
     }
@@ -437,58 +358,10 @@ impl EditProcessor for BichromaticBlendEdit {
 
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
-            // clearing for processing render loop
-            let _ = terminal.clear();
-
-            // information
-            let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
-            let (width, height) = source_image.dimensions();
-            let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
-
-            // getting the colors
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let spectrum = get_2d_spectrum(self.base_color_1_rgb, self.base_color_2_rgb);
 
-            // pixel information
-            let _ = terminal.draw(|frame| render_loading(frame, "Editing pixels...".to_string()));
-            let pixel_count = width * height;
-            let pixels_edited = AtomicUsize::new(0);
-            let terminal_mutex = Arc::new(Mutex::new(terminal));
-
-            // editing pixel by pixel and collecting the new pixels
-            let rows: Vec<(u32, u32, Rgb<u8>)> = (0..height).into_par_iter().flat_map(|y| {
-                let mut row = vec![];
-                for x in 0..width {
-                    let pixel = source_image.get_pixel(x, y).to_rgb();
-                    let new_pixel = get_closest_color(&spectrum, pixel);
-
-                    row.push((x, y, new_pixel));
-
-                    let pixels_edited_internal = pixels_edited.fetch_add(1, Ordering::Relaxed);
-                    if pixels_edited_internal % 30000 == 0 {
-                        let percentage = (pixels_edited_internal as f64 / pixel_count as f64) * 100.0;
-                        if let Ok(mut terminal_internal) = terminal_mutex.lock() {
-                            let _ = terminal_internal.draw(|frame| render_progress(frame, percentage));
-                        }
-                    }
-                }
-                row
-            }).collect();
-
-            // freeing the terminal
-            let terminal = Arc::try_unwrap(terminal_mutex).unwrap().into_inner().unwrap();
-
-            // filling the new image with the new pixels
-            let _ = terminal.draw(|frame| render_loading(frame, "Filling new image...".to_string()));
-            for (x, y, pixel) in rows {
-                new_image.put_pixel(x, y, pixel);
-            }
-
-            // clearing after processing render loop
-            let _ = terminal.clear();
-
-            // returns the new image
-            return Some(new_image)
+            return Some(process_evenly(source_image, spectrum, terminal))
         }
 
         None
@@ -542,6 +415,11 @@ impl EditProcessor for TrichromaticEdit {
     fn get_color_set(&self) -> String {
         format!("{}-{}-{}", self.base_color_1_hex.clone(), self.base_color_2_hex.clone(), self.base_color_3_hex.clone())
     }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+    
     fn get_current_step_label(&self) -> String {
         self.guide.get_current_label()
     }
@@ -592,61 +470,13 @@ impl EditProcessor for TrichromaticEdit {
 
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
-            // clearing for processing render loop
-            let _ = terminal.clear();
-
-            // information
-            let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
-            let (width, height) = source_image.dimensions();
-            let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
-
-            // getting the colors
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let mut spectrum = get_1d_spectrum(self.base_color_1_rgb);
             spectrum.extend(get_1d_spectrum(self.base_color_2_rgb));
             spectrum.extend(get_1d_spectrum(self.base_color_3_rgb));
             spectrum = remove_duplicates_unordered(spectrum);
 
-            // pixel information
-            let _ = terminal.draw(|frame| render_loading(frame, "Editing pixels...".to_string()));
-            let pixel_count = width * height;
-            let pixels_edited = AtomicUsize::new(0);
-            let terminal_mutex = Arc::new(Mutex::new(terminal));
-
-            // editing pixel by pixel and collecting the new pixels
-            let rows: Vec<(u32, u32, Rgb<u8>)> = (0..height).into_par_iter().flat_map(|y| {
-                let mut row = vec![];
-                for x in 0..width {
-                    let pixel = source_image.get_pixel(x, y).to_rgb();
-                    let new_pixel = get_closest_color(&spectrum, pixel);
-
-                    row.push((x, y, new_pixel));
-
-                    let pixels_edited_internal = pixels_edited.fetch_add(1, Ordering::Relaxed);
-                    if pixels_edited_internal % 30000 == 0 {
-                        let percentage = (pixels_edited_internal as f64 / pixel_count as f64) * 100.0;
-                        if let Ok(mut terminal_internal) = terminal_mutex.lock() {
-                            let _ = terminal_internal.draw(|frame| render_progress(frame, percentage));
-                        }
-                    }
-                }
-                row
-            }).collect();
-
-            // freeing the terminal
-            let terminal = Arc::try_unwrap(terminal_mutex).unwrap().into_inner().unwrap();
-
-            // filling the new image with the new pixels
-            let _ = terminal.draw(|frame| render_loading(frame, "Filling new image...".to_string()));
-            for (x, y, pixel) in rows {
-                new_image.put_pixel(x, y, pixel);
-            }
-
-            // clearing after processing render loop
-            let _ = terminal.clear();
-
-            // returns the new image
-            return Some(new_image)
+            return Some(process_evenly(source_image, spectrum, terminal))
         }
 
         None
@@ -681,6 +511,10 @@ impl EditProcessor for AutomaticMonochromaticEdit {
         "Automatic".to_string()
     }
 
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
     fn get_current_step_label(&self) -> String {
         self.guide.get_current_label()
     }
@@ -710,60 +544,12 @@ impl EditProcessor for AutomaticMonochromaticEdit {
 
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
-            // clearing for processing render loop
-            let _ = terminal.clear();
-
-            // information
-            let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
-            let (width, height) = source_image.dimensions();
-            let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
-
-            // getting the colors
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let spectrum = get_1d_spectrum(get_average_color(&source_image));
-
-            // pixel information
-            let _ = terminal.draw(|frame| render_loading(frame, "Editing pixels...".to_string()));
-            let pixel_count = width * height;
-            let pixels_edited = AtomicUsize::new(0);
-            let terminal_mutex = Arc::new(Mutex::new(terminal));
-
-            // editing pixel by pixel and collecting the new pixels
-            let rows: Vec<(u32, u32, Rgb<u8>)> = (0..height).into_par_iter().flat_map(|y| {
-                let mut row = vec![];
-                for x in 0..width {
-                    let pixel = source_image.get_pixel(x, y).to_rgb();
-                    let new_pixel = get_closest_color(&spectrum, pixel);
-
-                    row.push((x, y, new_pixel));
-
-                    let pixels_edited_internal = pixels_edited.fetch_add(1, Ordering::Relaxed);
-                    if pixels_edited_internal % 30000 == 0 {
-                        let percentage = (pixels_edited_internal as f64 / pixel_count as f64) * 100.0;
-                        if let Ok(mut terminal_internal) = terminal_mutex.lock() {
-                            let _ = terminal_internal.draw(|frame| render_progress(frame, percentage));
-                        }
-                    }
-                }
-                row
-            }).collect();
-
-            // freeing the terminal
-            let terminal = Arc::try_unwrap(terminal_mutex).unwrap().into_inner().unwrap();
-
-            // filling the new image with the new pixels
-            let _ = terminal.draw(|frame| render_loading(frame, "Filling new image...".to_string()));
-            for (x, y, pixel) in rows {
-                new_image.put_pixel(x, y, pixel);
-            }
-
-            // clearing after processing render loop
-            let _ = terminal.clear();
-
-            // returns the new image
-            return Some(new_image)
+            
+            return Some(process_evenly(source_image, spectrum, terminal))
         }
-
+        
         None
     }
 }

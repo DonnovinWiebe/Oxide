@@ -3,6 +3,7 @@ use ratatui::Frame;
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 use crate::app::{App, Pages};
+use crate::processor::guide::ProcessingStepTypes;
 use crate::processor::Processors;
 
 /// Renders the current page of the application.
@@ -57,7 +58,12 @@ pub fn render_current_page(frame: &mut Frame, app: &App) {
             if let Some(processor) = &app.selected_processor {
                 let body = Paragraph::new(vec![
                     Line::raw(format!("Step: {}", processor.get_current_step_label())),
-                    Line::raw(format!("Input: {}", processor.get_current_step_input())),
+                    Line::raw(if processor.get_current_step_type() == ProcessingStepTypes::Color {
+                        format!("Color: #{}", processor.get_current_step_input())
+                    }
+                    else {
+                        format!("Input: {}", processor.get_current_step_input())
+                    }),
                 ]);
                 frame.render_widget(body, leaflets[1]);
             }
@@ -181,9 +187,9 @@ impl Instruction {
         // returns the list of lines
         lines
     }
-    
-    
-    
+
+
+
     // instructions
     pub fn select_next() -> Instruction { Instruction::new(">".to_string(), "next page".to_string(), KeyCode::Right) }
     pub fn select_previous() -> Instruction { Instruction::new("<".to_string(), "previous page".to_string(), KeyCode::Left) }

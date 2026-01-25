@@ -1,11 +1,23 @@
-use image::{DynamicImage, GenericImageView, Rgb};
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Pixel, Rgb};
+use rayon::prelude::*;
+use crate::processor::tooling::pallet::{get_1d_spectrum, get_closest_color};
+use crate::ui::{render_loading, render_progress};
 
 /// Module containing functions for working with colors and color palettes.
 pub mod pallet {
     use std::cmp::min;
     use std::collections::HashSet;
-    use image::Rgb;
+    use std::io::Stdout;
+    use std::path::PathBuf;
+    use std::sync::{Arc, Mutex};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use image::{DynamicImage, GenericImageView, ImageBuffer, Pixel, Rgb};
+    use ratatui::backend::CrosstermBackend;
+    use ratatui::Terminal;
     use rayon::prelude::*;
+    use crate::ui::render_loading;
 
     /// Gets the standard step count required to catch all colors between any two different colors.
     fn interpolation_steps() -> usize { 442 }
@@ -224,23 +236,85 @@ pub mod pallet {
 
         inside_colors
     }
-}
 
-/// Gets the average color from an image.
-pub fn get_average_color(image: &DynamicImage) -> Rgb<u8> {
-    let (width, height) = image.dimensions();
-    let pixel_count = (width * height) as u128;
-    let mut r: u128 = 0;
-    let mut g: u128 = 0;
-    let mut b: u128 = 0;
+    /// Gets the average color from an image.
+    pub fn get_average_color(image: &DynamicImage) -> Rgb<u8> {
+        let (width, height) = image.dimensions();
+        let pixel_count = (width * height) as u128;
+        let mut r: u128 = 0;
+        let mut g: u128 = 0;
+        let mut b: u128 = 0;
 
-    for y in 0..height {
-        for x in 0..width {
-            r += image.get_pixel(x, y)[0] as u128;
-            g += image.get_pixel(x, y)[1] as u128;
-            b += image.get_pixel(x, y)[2] as u128;
+        for y in 0..height {
+            for x in 0..width {
+                r += image.get_pixel(x, y)[0] as u128;
+                g += image.get_pixel(x, y)[1] as u128;
+                b += image.get_pixel(x, y)[2] as u128;
+            }
         }
+
+        Rgb([(r / pixel_count) as u8, (g / pixel_count) as u8, (b / pixel_count) as u8])
     }
 
-    Rgb([(r / pixel_count) as u8, (g / pixel_count) as u8, (b / pixel_count) as u8])
+    pub fn palletize(source_image: DynamicImage, pallet: Vec<Rgb<u8>>, render_progress: impl Fn(String) + Sync) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+        // information
+        let (width, height) = source_image.dimensions();
+        let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+
+        // pixel information
+        render_progress("Editing pixels...".to_string());
+        let pixel_count = width * height;
+        let pixels_edited = AtomicUsize::new(0);
+
+        // editing pixel by pixel and collecting the new pixels
+        let rows: Vec<(u32, u32, Rgb<u8>)> = (0..height).into_par_iter().flat_map(|y| {
+            let mut row = vec![];
+            for x in 0..width {
+                let pixel = source_image.get_pixel(x, y).to_rgb();
+                let new_pixel = get_closest_color(&pallet, pixel);
+
+                row.push((x, y, new_pixel));
+
+                let pixels_edited_internal = pixels_edited.fetch_add(1, Ordering::Relaxed);
+                if pixels_edited_internal % 20000 == 0 {
+                    let percentage = (pixels_edited_internal as f64 / pixel_count as f64) * 100.0;
+                    render_progress(format!("Editing pixels... {}% complete", percentage.round() as usize));
+                }
+            }
+            row
+        }).collect();
+
+        // filling the new image with the new pixels
+        render_progress("Filling new image...".to_string());
+        for (x, y, pixel) in rows {
+            new_image.put_pixel(x, y, pixel);
+        }
+
+        // returns the new image
+        new_image
+    }
+
+    pub fn process_evenly(source_image: DynamicImage, pallet: Vec<Rgb<u8>>, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+        // clearing for processing render loop
+        let _ = terminal.clear();
+
+        // information
+        let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
+        let (width, height) = source_image.dimensions();
+        let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+
+        let terminal_mutex = Arc::new(Mutex::new(terminal));
+        let new_image = palletize(
+            source_image,
+            pallet,
+            {
+                let term = Arc::clone(&terminal_mutex);
+                move |message| {
+                    let _ = term.lock().unwrap().draw(|frame| render_loading(frame, message));
+                }
+            }
+        );
+
+        new_image
+    }
 }
