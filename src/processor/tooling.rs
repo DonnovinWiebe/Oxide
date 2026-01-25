@@ -19,6 +19,15 @@ pub mod pallet {
     use rayon::prelude::*;
     use crate::ui::render_loading;
 
+    /// Gets the standard distance difference used to define whether two colors are in the same or different color regions.
+    fn color_region_differentiation() -> f32 { 8.0 }
+
+    /// Gets the standard multiplier to determine what is considered an accent color (applied to color_region_differentiation()).
+    fn accent_color_multiplier() -> f32 { 2.0 }
+
+    /// Gets the standard bias for biased colorizing.
+    fn standard_bias() -> f32 { 1.5 }
+
     /// Gets the standard step count required to catch all colors between any two different colors.
     fn interpolation_steps() -> usize { 442 }
 
@@ -76,14 +85,14 @@ pub mod pallet {
         set.into_iter().collect()
     }
 
-    /// Gets a distance-related score between two colors.
-    /// Greater score = greater distance.
-    fn get_distance_score(color_1: Rgb<u8>, color_2: Rgb<u8>) -> f32 {
-        let r_score = ((color_1[0] as i32 - color_2[0] as i32) as f32).abs() / 0.299;
-        let g_score = ((color_1[1] as i32 - color_2[1] as i32) as f32).abs() / 0.587;
-        let b_score = ((color_1[2] as i32 - color_2[2] as i32) as f32).abs() / 0.114;
+    /// Gets the distance between two colors.
+    /// Increasing the bias makes the two colors read as closer (in most use cases that means more likely)
+    fn get_distance(color_1: Rgb<u8>, color_2: Rgb<u8>, bias: Option<f32>) -> f32 {
+        let r = ((color_1[0] as f32 - color_2[0] as f32).abs() * 0.299) / bias.unwrap_or(1.0);
+        let g = ((color_1[1] as f32 - color_2[1] as f32).abs() * 0.587) / bias.unwrap_or(1.0);
+        let b = ((color_1[2] as f32 - color_2[2] as f32).abs() * 0.114) / bias.unwrap_or(1.0);
 
-        r_score.powi(2) + g_score.powi(2) + b_score.powi(2)
+        (r.powi(2) + g.powi(2) + b.powi(2)).sqrt()
     }
 
     /// Returns the closest color from a given pallet to a given color.
@@ -91,15 +100,38 @@ pub mod pallet {
         if pallet.is_empty() { return color; }
 
         let mut closest_color = pallet[0];
-        let mut closest_distance_score = get_distance_score(color, closest_color);
+        let mut closest_distance = get_distance(color, closest_color, None);
 
         for &palette_color in &pallet[1..] {
-            let distance_score = get_distance_score(color, palette_color);
-            if distance_score < closest_distance_score {
-                closest_distance_score = distance_score;
+            let distance = get_distance(color, palette_color, None);
+            if distance < closest_distance {
+                closest_distance = distance;
                 closest_color = palette_color;
+            }
+        }
 
-                if distance_score == 0.0 { break; } // Early exit after an exact match
+        closest_color
+    }
+
+    /// Returns the closest color from a given pallet to a given color.
+    pub fn get_closest_color_biased(biased_pallet: &Vec<Rgb<u8>>, standard_pallet: &Vec<Rgb<u8>>, color: Rgb<u8>) -> Rgb<u8> {
+        if biased_pallet.is_empty() || biased_pallet.is_empty() { return color; }
+
+        let mut closest_color = biased_pallet[0];
+        let mut closest_distance = get_distance(color, closest_color, Some(standard_bias()));
+
+        for &biased_color in &biased_pallet[1..] {
+            let distance = get_distance(color, biased_color, Some(standard_bias()));
+            if distance < closest_distance {
+                closest_distance = distance;
+                closest_color = biased_color;
+            }
+        }
+        for &standard_color in &standard_pallet[0..] {
+            let distance = get_distance(color, standard_color, None);
+            if distance < closest_distance {
+                closest_distance = distance;
+                closest_color = standard_color;
             }
         }
 
@@ -238,24 +270,94 @@ pub mod pallet {
     }
 
     /// Gets the average color from an image.
-    pub fn get_average_color(image: &DynamicImage) -> Rgb<u8> {
+    pub fn get_average_color_from_image(image: &DynamicImage) -> Rgb<u8> {
         let (width, height) = image.dimensions();
-        let pixel_count = (width * height) as u128;
-        let mut r: u128 = 0;
-        let mut g: u128 = 0;
-        let mut b: u128 = 0;
+        let pixel_count = (width * height) as f32;
+        let mut r: f32 = 0.0;
+        let mut g: f32 = 0.0;
+        let mut b: f32 = 0.0;
 
         for y in 0..height {
             for x in 0..width {
-                r += image.get_pixel(x, y)[0] as u128;
-                g += image.get_pixel(x, y)[1] as u128;
-                b += image.get_pixel(x, y)[2] as u128;
+                r += image.get_pixel(x, y)[0] as f32;
+                g += image.get_pixel(x, y)[1] as f32;
+                b += image.get_pixel(x, y)[2] as f32;
             }
         }
 
-        Rgb([(r / pixel_count) as u8, (g / pixel_count) as u8, (b / pixel_count) as u8])
+        Rgb([(r / pixel_count).round() as u8, (g / pixel_count).round() as u8, (b / pixel_count).round() as u8])
     }
 
+    /// Gets the average color from a list of pixels.
+    pub fn get_average_color_from_pixels(pixels: &Vec<Rgb<u8>>) -> Rgb<u8> {
+        let mut r: f32 = 0.0;
+        let mut g: f32 = 0.0;
+        let mut b: f32 = 0.0;
+
+        for pixel in pixels {
+            r += pixel[0] as f32;
+            g += pixel[1] as f32;
+            b += pixel[2] as f32;
+        }
+
+        Rgb([(r / pixels.len() as f32).round() as u8, (g / pixels.len() as f32).round() as u8, (b / pixels.len() as f32).round() as u8])
+    }
+
+    /// Returns whether a color is considered an accent color.
+    fn is_accent_color(color: Rgb<u8>) -> bool {
+        let r_value = color[0] as f32 * 0.299;
+        let g_value = color[1] as f32 * 0.587;
+        let b_value = color[2] as f32 * 0.114;
+        let brightness = r_value + g_value + b_value;
+        let perceived_greyscale_color = Rgb([brightness as u8, brightness as u8, brightness as u8]);
+        get_distance(color, perceived_greyscale_color, None) > color_region_differentiation() * accent_color_multiplier()
+    }
+
+    /// Returns whether two colors are different enough to be considered separate regions.
+    fn is_different_color_region(color_1: Rgb<u8>, color_2: Rgb<u8>) -> bool {
+        get_distance(color_1, color_2, None) > color_region_differentiation()
+    }
+
+    /// Gets the average color from an image.
+    pub fn get_accent_color(image: &DynamicImage) -> Rgb<u8> {
+        // the list of all accent colors grouped into separate regions of color space
+        let mut accent_regions: Vec<Vec<Rgb<u8>>> = Vec::new();
+
+        // examines every pixel in an image
+        let (width, height) = image.dimensions();
+        for y in 0..height {
+            for x in 0..width {
+                // gets the current pixel
+                let pixel = image.get_pixel(x, y).to_rgb();
+
+                // continues to the next pixel if it is not an accent color
+                if !is_accent_color(pixel) { continue; }
+
+                // checks to see if the current pixel fits into an existing region
+                let mut is_new_region = true;
+                for region in &mut accent_regions {
+                    // adds the pixel to the region if it fits
+                    if !is_different_color_region(get_average_color_from_pixels(region), pixel) {
+                        is_new_region = false;
+                        region.push(pixel);
+                        break;
+                    }
+                }
+
+                // if no existing region fits, a new region for the pixel is created
+                if is_new_region { accent_regions.push(vec![pixel]); }
+            }
+        }
+
+        // returns the average color of the image if there are no accent color regions
+        if accent_regions.is_empty() { return get_average_color_from_image(image); }
+
+        // gets the region with the most pixels and returns its average color
+        let largest_region = accent_regions.iter().max_by_key(|region| region.len()).unwrap();
+        get_average_color_from_pixels(largest_region)
+    }
+
+    /// Evenly colorizes an image using only the colors in a given pallet.
     pub fn palletize(source_image: DynamicImage, pallet: Vec<Rgb<u8>>, render_progress: impl Fn(String) + Sync) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
         // information
         let (width, height) = source_image.dimensions();
@@ -294,6 +396,7 @@ pub mod pallet {
         new_image
     }
 
+    /// Evenly processes and image using only the colors in a given pallet.
     pub fn process_evenly(source_image: DynamicImage, pallet: Vec<Rgb<u8>>, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
         // clearing for processing render loop
         let _ = terminal.clear();
@@ -301,12 +404,75 @@ pub mod pallet {
         // information
         let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
         let (width, height) = source_image.dimensions();
-        let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
 
         let terminal_mutex = Arc::new(Mutex::new(terminal));
         let new_image = palletize(
             source_image,
             pallet,
+            {
+                let term = Arc::clone(&terminal_mutex);
+                move |message| {
+                    let _ = term.lock().unwrap().draw(|frame| render_loading(frame, message));
+                }
+            }
+        );
+
+        new_image
+    }
+
+    /// Colorizes an image with two pallets with one being preferred.
+    pub fn palletize_biased(source_image: DynamicImage, biased_pallet: Vec<Rgb<u8>>, standard_pallet: Vec<Rgb<u8>>, render_progress: impl Fn(String) + Sync) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+        // information
+        let (width, height) = source_image.dimensions();
+        let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
+
+        // pixel information
+        render_progress("Editing pixels...".to_string());
+        let pixel_count = width * height;
+        let pixels_edited = AtomicUsize::new(0);
+
+        // editing pixel by pixel and collecting the new pixels
+        let rows: Vec<(u32, u32, Rgb<u8>)> = (0..height).into_par_iter().flat_map(|y| {
+            let mut row = vec![];
+            for x in 0..width {
+                let pixel = source_image.get_pixel(x, y).to_rgb();
+                let new_pixel = get_closest_color_biased(&biased_pallet, &standard_pallet, pixel);
+
+                row.push((x, y, new_pixel));
+
+                let pixels_edited_internal = pixels_edited.fetch_add(1, Ordering::Relaxed);
+                if pixels_edited_internal % 20000 == 0 {
+                    let percentage = (pixels_edited_internal as f64 / pixel_count as f64) * 100.0;
+                    render_progress(format!("Editing pixels... {}% complete", percentage.round() as usize));
+                }
+            }
+            row
+        }).collect();
+
+        // filling the new image with the new pixels
+        render_progress("Filling new image...".to_string());
+        for (x, y, pixel) in rows {
+            new_image.put_pixel(x, y, pixel);
+        }
+
+        // returns the new image
+        new_image
+    }
+
+    /// Processes an image with two pallets with one being preferred.
+    pub fn process_biased(source_image: DynamicImage, biased_pallet: Vec<Rgb<u8>>, standard_pallet: Vec<Rgb<u8>>, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+        // clearing for processing render loop
+        let _ = terminal.clear();
+
+        // information
+        let _ = terminal.draw(|frame| render_loading(frame, "Loading image information...".to_string()));
+        let (width, height) = source_image.dimensions();
+
+        let terminal_mutex = Arc::new(Mutex::new(terminal));
+        let new_image = palletize_biased(
+            source_image,
+            biased_pallet,
+            standard_pallet,
             {
                 let term = Arc::clone(&terminal_mutex);
                 move |message| {

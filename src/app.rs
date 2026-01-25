@@ -207,17 +207,23 @@ impl App {
                                 Processors::Monochromatic => {
                                     self.selected_processor = Some(Box::new(MonochromaticEdit::new(self.selected_image_path.clone().unwrap())));
                                 }
+                                Processors::AutomaticMonochromatic => {
+                                    self.selected_processor = Some(Box::new(AutomaticMonochromaticEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::AutomaticMonochromaticWithAccent => {
+                                    self.selected_processor = Some(Box::new(AutomaticMonochromaticWithAccentEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
                                 Processors::Bichromatic => {
                                     self.selected_processor = Some(Box::new(BichromaticEdit::new(self.selected_image_path.clone().unwrap())));
                                 }
                                 Processors::BichromaticBlend => {
                                     self.selected_processor = Some(Box::new(BichromaticBlendEdit::new(self.selected_image_path.clone().unwrap())));
                                 }
+                                Processors::BichromaticBlendWithAccent => {
+                                    self.selected_processor = Some(Box::new(BichromaticBlendWithAccentEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
                                 Processors::Trichromatic => {
                                     self.selected_processor = Some(Box::new(TrichromaticEdit::new(self.selected_image_path.clone().unwrap())));
-                                }
-                                Processors::AutomaticMonochromatic => {
-                                    self.selected_processor = Some(Box::new(AutomaticMonochromaticEdit::new(self.selected_image_path.clone().unwrap())));
                                 }
                             }
                             
