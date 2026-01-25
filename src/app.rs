@@ -314,7 +314,7 @@ impl App {
                             }
 
                             // updating the current guide step input
-                            let new_input = term_tools::keypad(&processor.get_current_step_input(), key);
+                            let new_input = term_tools::keyboard(&processor.get_current_step_input(), key, true);
                             processor.update_current_step_input(new_input);
 
                             // trying to reset
@@ -376,7 +376,7 @@ pub mod term_tools {
     }
 
     /// Modifies a string-based text input field from a key event.
-    pub fn keypad(field: &str, input: KeyEvent) -> String {
+    pub fn keyboard(field: &str, input: KeyEvent, capitalize: bool) -> String {
         if input.kind == event::KeyEventKind::Release {}
 
         let mut field = field.to_string();
@@ -385,7 +385,7 @@ pub mod term_tools {
                 if field.is_empty() { return field; }
                 field.remove(field.len() - 1);
             }
-            KeyCode::Char(char) => { field.push(char); }
+            KeyCode::Char(char) => { field.push(if capitalize { char.to_uppercase().next().unwrap() } else { char } ); }
             _ => {}
         }
         field
