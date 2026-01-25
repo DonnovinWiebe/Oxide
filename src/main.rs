@@ -27,7 +27,7 @@ fn main() -> Result<()> {
     fs::create_dir_all(&source_directory)?;
     fs::create_dir_all(&output_directory)?;
 
-    let source_image_paths: Vec<PathBuf> = fs::read_dir(&source_directory)?
+    let mut source_image_paths: Vec<PathBuf> = fs::read_dir(&source_directory)?
         .filter_map(|e| e.ok())
         .map(|e| e.path())
         .filter(|p| {
@@ -37,6 +37,7 @@ fn main() -> Result<()> {
                 .unwrap_or(false)
         })
         .collect();
+    source_image_paths.sort();
 
     // app setup
     let mut app = App::new(source_directory, output_directory, source_image_paths);
