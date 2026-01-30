@@ -226,7 +226,7 @@ impl Gpu {
         let u32_standard_pallet: Vec<u32> = Self::colors_as_vec_u32(standard_pallet);
 
         // Create GPU buffers
-        let dimensions = GpuImageInformation::new(width, height, 0, biased_pallet.len());
+        let dimensions = GpuImageInformation::new(width, height, biased_pallet.len(), standard_pallet.len());
         let dimensions_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Dimensions Buffer"),
             contents: bytemuck::bytes_of(&dimensions),
@@ -260,8 +260,8 @@ impl Gpu {
 
         // Load shader
         let shader = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Palletize Evenly"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("palletize_evenly.wgsl").into()),
+            label: Some("Palletize Biased"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("palletize_biased.wgsl").into()),
         });
 
         // Create pipeline
@@ -434,21 +434,16 @@ pub fn process_biased(source_image: DynamicImage, biased_pallet: Vec<Rgb<u8>>, s
     let (width, height) = source_image.dimensions();
     let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
 
-    // editing pixel by pixel and collecting the new pixels
-    let rows: Vec<(u32, u32, Rgb<u8>)> = (0..height).into_par_iter().flat_map(|y| {
-        let mut row = vec![];
-        for x in 0..width {
-            let pixel = source_image.get_pixel(x, y).to_rgb();
-            let new_pixel = get_closest_color_biased(&biased_pallet, &standard_pallet, pixel);
-
-            row.push((x, y, new_pixel));
-        }
-        row
-    }).collect();
+    // editing
+    let pixels: Vec<Rgb<u8>> = source_image.pixels().map(|pixel| { pixel.2.to_rgb() }).collect();
+    let gpu = Gpu::new();
+    let new_pixels = gpu.palletize_biased(width, height, &pixels, &biased_pallet, &standard_pallet);
 
     // filling the new image with the new pixels
-    for (x, y, pixel) in rows {
-        new_image.put_pixel(x, y, pixel);
+    for x in 0..new_pixels.len() {
+        let x_index = (x as u32 % width);
+        let y_index = x as u32 / width;
+        new_image.put_pixel(x_index, y_index, new_pixels[x]);
     }
 
     // returns the new image

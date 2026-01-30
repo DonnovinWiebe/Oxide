@@ -35,9 +35,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     for (var i = 0u; i < biased_pallet_length; i++) {
         let color = unpack(biased_pallet[i]);
 
-        let r_value = (pixel.x - color.x) * 0.299 * 1.5;
-        let g_value = (pixel.y - color.y) * 0.587 * 1.5;
-        let b_value = (pixel.z - color.z) * 0.114 * 1.5;
+        let r_value = (pixel.x - color.x) * 0.299 / 1.5;
+        let g_value = (pixel.y - color.y) * 0.587 / 1.5;
+        let b_value = (pixel.z - color.z) * 0.114 / 1.5;
         let distance = sqrt((r_value * r_value) + (g_value * g_value) + (b_value * b_value));
 
         if (distance < closest_biased_color_distance) {
@@ -52,9 +52,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     for (var i = 0u; i < standard_pallet_length; i++) {
         let color = unpack(standard_pallet[i]);
 
-        let r_value = (pixel.x - color.x) * 0.299 * 1.5;
-        let g_value = (pixel.y - color.y) * 0.587 * 1.5;
-        let b_value = (pixel.z - color.z) * 0.114 * 1.5;
+        let r_value = (pixel.x - color.x) * 0.299;
+        let g_value = (pixel.y - color.y) * 0.587;
+        let b_value = (pixel.z - color.z) * 0.114;
         let distance = sqrt((r_value * r_value) + (g_value * g_value) + (b_value * b_value));
 
         if (distance < closest_standard_color_distance) {
@@ -63,7 +63,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
-    if (closest_biased_color_index <= closest_standard_color_distance) {
+    if (closest_biased_color_distance <= closest_standard_color_distance) {
         shader_results[pixel_index] = closest_biased_color_index;
     }
     else {
