@@ -169,7 +169,8 @@ impl EditProcessor for MonochromaticEdit {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let spectrum = get_1d_spectrum(self.base_color_rgb);
 
-            return Some(process_evenly(source_image, spectrum, terminal))
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, spectrum))
         }
 
         None
@@ -240,8 +241,9 @@ impl EditProcessor for AutomaticMonochromaticWithAccentEdit {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let base_spectrum = get_1d_spectrum(get_average_color_from_image(&source_image));
             let accent_spectrum = get_1d_spectrum(get_accent_color(&source_image));
-            
-            return Some(process_biased(source_image, base_spectrum, accent_spectrum, terminal))
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_biased(source_image, base_spectrum, accent_spectrum))
         }
 
         None
@@ -312,7 +314,8 @@ impl EditProcessor for AutomaticMonochromaticEdit {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let spectrum = get_1d_spectrum(get_average_color_from_image(&source_image));
 
-            return Some(process_evenly(source_image, spectrum, terminal))
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, spectrum))
         }
 
         None
@@ -413,7 +416,8 @@ impl EditProcessor for BichromaticEdit {
             spectrum.extend(get_1d_spectrum(self.base_color_2_rgb));
             spectrum = remove_duplicates_unordered(spectrum);
 
-            return Some(process_evenly(source_image, spectrum, terminal))
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, spectrum))
         }
 
         None
@@ -512,7 +516,8 @@ impl EditProcessor for BichromaticBlendEdit {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let spectrum = get_2d_spectrum(self.base_color_1_rgb, self.base_color_2_rgb);
 
-            return Some(process_evenly(source_image, spectrum, terminal))
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, spectrum))
         }
 
         None
@@ -612,7 +617,8 @@ impl EditProcessor for BichromaticBlendWithAccentEdit {
             let base_spectrum = get_2d_spectrum(self.base_color_1_rgb, self.base_color_2_rgb);
             let accent_spectrum = get_1d_spectrum(get_accent_color(&source_image));
 
-            return Some(process_biased(source_image, base_spectrum, accent_spectrum, terminal))
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_biased(source_image, base_spectrum, accent_spectrum))
         }
 
         None
@@ -727,7 +733,8 @@ impl EditProcessor for TrichromaticEdit {
             spectrum.extend(get_1d_spectrum(self.base_color_3_rgb));
             spectrum = remove_duplicates_unordered(spectrum);
 
-            return Some(process_evenly(source_image, spectrum, terminal))
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, spectrum))
         }
 
         None
