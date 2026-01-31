@@ -320,6 +320,8 @@ fn is_different_color_region(color_1: &Rgb<u8>, color_2: &Rgb<u8>) -> bool {
 
 /// Gets the average color from an image.
 pub fn get_accent_color(image: &DynamicImage) -> Rgb<u8> {
+    // gets the average color of the image for later
+    let average_image_color = get_average_color_from_image(image);
     // gets the number of chunks to split the image into to process it in parallel
     let chunk_count = rayon::current_num_threads();
 
@@ -333,41 +335,42 @@ pub fn get_accent_color(image: &DynamicImage) -> Rgb<u8> {
     let chunks: Vec<Vec<Rgb<u8>>> = pixels.chunks(pixels_per_chunk as usize).map(|chunk| chunk.to_vec()).collect();
 
     // collects all the accent regions from different threads
-    let overlapping_accent_regions: Vec<Vec<Rgb<u8>>> = chunks.into_par_iter().flat_map(|chunk| {
-        let mut accent_regions: Vec<Vec<Rgb<u8>>> = Vec::new();
+    let overlapping_accent_regions: Vec<Region> = chunks.into_par_iter().flat_map(|chunk| {
+        let mut accent_regions: Vec<Region> = Vec::new();
         chunk.into_iter().filter(|pixel| is_accent_color(pixel)).for_each(|pixel| {
             // checks to see if the current pixel fits into an existing region
             let mut is_new_region = true;
             for region in &mut accent_regions {
                 // adds the pixel to the region if it fits
-                if !is_different_color_region(&get_average_color_from_pixels(region), &pixel) {
+                if !is_different_color_region(&region.average_color, &pixel) {
                     is_new_region = false;
-                    region.push(pixel);
+                    region.add_color(pixel);
                     break;
                 }
             }
 
             // if no existing region fits, a new region for the pixel is created
-            if is_new_region { accent_regions.push(vec![pixel]); }
+            if is_new_region {
+                let mut new_region = Region::new();
+                new_region.add_color(pixel);
+                accent_regions.push(new_region);
+            }
         });
         accent_regions
     }).collect();
 
     // the list of merged accent regions
-    let mut merged_accent_regions: Vec<Vec<Rgb<u8>>> = Vec::new();
+    let mut merged_accent_regions: Vec<Region> = Vec::new();
 
     // iterates over every overlapping accent region to find where it fits in the merged accent regions
     // if there is no fitting merged region, a new merged region is created
     for overlapping_region in &overlapping_accent_regions {
-        let average_overlapping_region_color = get_average_color_from_pixels(&overlapping_region);
-
         // iterates over every merged region to find where the overlapping region fits in the merged regions
         let mut merged = false;
         for merged_region in &mut merged_accent_regions {
-            let average_merged_region_color = get_average_color_from_pixels(merged_region);
             // merges the overlapping region into the merged region if it fits
-            if !is_different_color_region(&average_overlapping_region_color, &average_merged_region_color) {
-                merged_region.extend(overlapping_region);
+            if !is_different_color_region(&overlapping_region.average_color, &merged_region.average_color) {
+                merged_region.add_colors(&overlapping_region.colors);
                 merged = true;
                 break;
             }
@@ -377,11 +380,19 @@ pub fn get_accent_color(image: &DynamicImage) -> Rgb<u8> {
     }
 
     // returns the average color of the image if there are no accent color regions
-    if merged_accent_regions.is_empty() { return get_average_color_from_image(image); }
+    if merged_accent_regions.is_empty() { return average_image_color; }
 
-    // gets the region with the most pixels and returns its average color
-    let largest_region = merged_accent_regions.iter().max_by_key(|region| region.len()).unwrap();
-    get_average_color_from_pixels(largest_region)
+    // gets the region with the greatest score and returns its average color
+    let mut greatest_accent_region_score: f32 = 0.0;
+    let mut greatest_accent_region_index = 0;
+    for i in 0..merged_accent_regions.len() {
+        let accent_score = merged_accent_regions[i].accent_score(&average_image_color);
+        if accent_score > greatest_accent_region_score {
+            greatest_accent_region_score = accent_score;
+            greatest_accent_region_index = i;
+        }
+    }
+    merged_accent_regions[greatest_accent_region_index].average_color
 }
 
 
@@ -555,5 +566,49 @@ pub mod pallets {
             Rgb([255, 99, 71]),
             Rgb([255, 127, 80]),
         ]
+    }
+}
+
+
+
+/// A region of colors.
+#[derive(Clone)]
+struct Region {
+    /// All the colors in the region
+    pub colors: Vec<Rgb<u8>>,
+    /// The average color of the region
+    pub average_color: Rgb<u8>,
+}
+impl Region {
+    /// Returns a new region.
+    pub fn new() -> Region {
+        Region {
+            colors: Vec::new(),
+            average_color: Rgb([0, 0, 0])
+        }
+    }
+
+    /// Adds a color to the region and updates the average color.
+    pub fn add_color(&mut self, color: Rgb<u8>) {
+        self.colors.push(color);
+        self.update_average_color();
+    }
+
+    /// Adds a list of colors to the region and updates the average color.
+    pub fn add_colors(&mut self, colors: &Vec<Rgb<u8>>) {
+        self.colors.extend(colors);
+        self.update_average_color();
+    }
+
+    /// Updates the average color of the region.
+    fn update_average_color(&mut self) {
+        self.average_color = get_average_color_from_pixels(&self.colors);
+    }
+
+    /// Gets the accent score based on the amount of colors and the distance from the images average color.
+    pub fn accent_score(&self, average_image_color: &Rgb<u8>) -> f32 {
+        let base_score = self.colors.len() as f32;
+        let distance_multiplier = get_distance(&self.average_color, average_image_color, &None) / 10.0;
+        base_score * distance_multiplier
     }
 }
