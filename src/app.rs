@@ -15,6 +15,7 @@ use crate::processor::*;
 use img_parts::jpeg::Jpeg;
 use img_parts::png::Png;
 use wgpu::Instance;
+use crate::processor::Processors::DeepestAfrica;
 
 /// The list of pages in the application.
 #[derive(Copy, Clone)]
@@ -229,6 +230,36 @@ impl App {
                                 }
                                 Processors::Trichromatic => {
                                     self.selected_processor = Some(Box::new(TrichromaticEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::VolcanicCrater => {
+                                    self.selected_processor = Some(Box::new(VolcanicCraterEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::RedRocks => {
+                                    self.selected_processor = Some(Box::new(RedRocksEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::DeepestAfrica => {
+                                    self.selected_processor = Some(Box::new(DeepestAfricaEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::ArcticWilderness => {
+                                    self.selected_processor = Some(Box::new(ArcticWildernessEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::Iceland => {
+                                    self.selected_processor = Some(Box::new(IcelandEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::EnglishOaks => {
+                                    self.selected_processor = Some(Box::new(EnglishOaksEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::WheatField => {
+                                    self.selected_processor = Some(Box::new(WheatFieldEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::SouthAmericanJungle => {
+                                    self.selected_processor = Some(Box::new(SouthAmericanJungleEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::EuropeanIslands => {
+                                    self.selected_processor = Some(Box::new(EuropeanIslandsEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
+                                Processors::ColorfulIslands => {
+                                    self.selected_processor = Some(Box::new(ColorfulIslandsEdit::new(self.selected_image_path.clone().unwrap())));
                                 }
                             }
                             

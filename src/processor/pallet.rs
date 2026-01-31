@@ -29,13 +29,13 @@ fn white() -> Rgb<u8> { Rgb([255, 255, 255]) }
 fn black() -> Rgb<u8> { Rgb([0, 0, 0]) }
 
 /// Checks if a given input is a valid HEX color code.
-pub fn is_hex(code: String) -> bool {
+pub fn is_hex(code: &String) -> bool {
     let code = code.trim_start_matches('#');
     (code.len() == 3 || code.len() == 6 || code.len() == 8) && code.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 /// Converts a HEX color code to an RGB color.
-pub fn as_rgb(hex: String) -> Option<Rgb<u8>> {
+pub fn as_rgb(hex: &String) -> Option<Rgb<u8>> {
     let hex = hex.trim_start_matches('#');
 
     let (r, g, b, a) = match hex.len() {
@@ -78,7 +78,7 @@ pub fn remove_duplicates_unordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>
 
 /// Gets the distance between two colors.
 /// Increasing the bias makes the two colors read as closer (in most use cases that means more likely)
-fn get_distance(color_1: Rgb<u8>, color_2: Rgb<u8>, bias: Option<f32>) -> f32 {
+fn get_distance(color_1: &Rgb<u8>, color_2: &Rgb<u8>, bias: &Option<f32>) -> f32 {
     let r = ((color_1[0] as f32 - color_2[0] as f32).abs() * 0.299) / bias.unwrap_or(1.0);
     let g = ((color_1[1] as f32 - color_2[1] as f32).abs() * 0.587) / bias.unwrap_or(1.0);
     let b = ((color_1[2] as f32 - color_2[2] as f32).abs() * 0.114) / bias.unwrap_or(1.0);
@@ -87,14 +87,14 @@ fn get_distance(color_1: Rgb<u8>, color_2: Rgb<u8>, bias: Option<f32>) -> f32 {
 }
 
 /// Returns the closest color from a given pallet to a given color.
-pub fn get_closest_color(pallet: &Vec<Rgb<u8>>, color: Rgb<u8>) -> Rgb<u8> {
-    if pallet.is_empty() { return color; }
+pub fn get_closest_color(pallet: &Vec<Rgb<u8>>, color: &Rgb<u8>) -> Rgb<u8> {
+    if pallet.is_empty() { return color.clone(); }
 
     let mut closest_color = pallet[0];
-    let mut closest_distance = get_distance(color, closest_color, None);
+    let mut closest_distance = get_distance(color, &closest_color, &None);
 
     for &palette_color in &pallet[1..] {
-        let distance = get_distance(color, palette_color, None);
+        let distance = get_distance(color, &palette_color, &None);
         if distance < closest_distance {
             closest_distance = distance;
             closest_color = palette_color;
@@ -105,21 +105,21 @@ pub fn get_closest_color(pallet: &Vec<Rgb<u8>>, color: Rgb<u8>) -> Rgb<u8> {
 }
 
 /// Returns the closest color from a given pallet to a given color.
-pub fn get_closest_color_biased(biased_pallet: &Vec<Rgb<u8>>, standard_pallet: &Vec<Rgb<u8>>, color: Rgb<u8>) -> Rgb<u8> {
-    if biased_pallet.is_empty() || biased_pallet.is_empty() { return color; }
+pub fn get_closest_color_biased(biased_pallet: &Vec<Rgb<u8>>, standard_pallet: &Vec<Rgb<u8>>, color: &Rgb<u8>) -> Rgb<u8> {
+    if biased_pallet.is_empty() || biased_pallet.is_empty() { return color.clone(); }
 
     let mut closest_color = biased_pallet[0];
-    let mut closest_distance = get_distance(color, closest_color, Some(standard_bias()));
+    let mut closest_distance = get_distance(color, &closest_color, &Some(standard_bias()));
 
     for &biased_color in &biased_pallet[1..] {
-        let distance = get_distance(color, biased_color, Some(standard_bias()));
+        let distance = get_distance(color, &biased_color, &Some(standard_bias()));
         if distance < closest_distance {
             closest_distance = distance;
             closest_color = biased_color;
         }
     }
     for &standard_color in &standard_pallet[0..] {
-        let distance = get_distance(color, standard_color, None);
+        let distance = get_distance(color, &standard_color, &None);
         if distance < closest_distance {
             closest_distance = distance;
             closest_color = standard_color;
@@ -130,7 +130,7 @@ pub fn get_closest_color_biased(biased_pallet: &Vec<Rgb<u8>>, standard_pallet: &
 }
 
 /// Gets all the colors between two other colors.
-fn get_colors_between(color_1: Rgb<u8>, color_2: Rgb<u8>) -> Vec<Rgb<u8>> {
+fn get_colors_between(color_1: &Rgb<u8>, color_2: &Rgb<u8>) -> Vec<Rgb<u8>> {
     // step information
     let r_difference = (color_2[0] as f64 - color_1[0] as f64) / interpolation_steps() as f64;
     let g_difference = (color_2[1] as f64 - color_1[1] as f64) / interpolation_steps() as f64;
@@ -155,11 +155,11 @@ fn get_colors_between(color_1: Rgb<u8>, color_2: Rgb<u8>) -> Vec<Rgb<u8>> {
 
 /// Gets the spectrum for a given color.
 /// Each spectrum is a smooth gradient from white -> color -> black.
-pub fn get_1d_spectrum(color: Rgb<u8>) -> Vec<Rgb<u8>> {
+pub fn get_1d_spectrum(color: &Rgb<u8>) -> Vec<Rgb<u8>> {
     // getting the spectrum
     let mut spectrum = vec![];
-    spectrum.extend(get_colors_between(white(), color));
-    spectrum.extend(get_colors_between(color, black()));
+    spectrum.extend(get_colors_between(&white(), color));
+    spectrum.extend(get_colors_between(color, &black()));
 
     // removes duplicates from the spectrum
     spectrum = remove_duplicates_ordered(spectrum);
@@ -168,16 +168,25 @@ pub fn get_1d_spectrum(color: Rgb<u8>) -> Vec<Rgb<u8>> {
     spectrum
 }
 
+/// Gets the 1d spectrums for all the colors in a given pallet and returns the results as a single pallet.
+pub fn get_1d_spectrums_for_pallet(pallet: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
+    let sum_pallet = pallet.par_iter().flat_map(|color| {
+        get_1d_spectrum(color)
+    }).collect();
+
+    remove_duplicates_ordered(sum_pallet)
+}
+
 /// Gets the spectrum for a given pair of colors.
 /// Each spectrum is a region of 3d color space that envelopes white -> colors -> black in one or two connected planes.
-pub fn get_2d_spectrum(color_1: Rgb<u8>, color_2: Rgb<u8>) -> Vec<Rgb<u8>> {
+pub fn get_2d_spectrum(color_1: &Rgb<u8>, color_2: &Rgb<u8>) -> Vec<Rgb<u8>> {
     let spectrum_1 = get_1d_spectrum(color_1);
     let spectrum_2 = get_1d_spectrum(color_2);
     let spectrum_steps = min(spectrum_1.len(), spectrum_2.len());
 
     let mut spectrum: Vec<Rgb<u8>> = (0..spectrum_steps).into_par_iter().flat_map(|i| {
-        let mut colors_between = get_colors_between(spectrum_1[i], spectrum_2[i]);
-        colors_between.extend(get_colors_between(spectrum_1[spectrum_1.len() - 1 - i], spectrum_2[spectrum_2.len() - 1 - i]));
+        let mut colors_between = get_colors_between(&spectrum_1[i], &spectrum_2[i]);
+        colors_between.extend(get_colors_between(&spectrum_1[spectrum_1.len() - 1 - i], &spectrum_2[spectrum_2.len() - 1 - i]));
         colors_between
     }).collect();
 
@@ -188,7 +197,7 @@ pub fn get_2d_spectrum(color_1: Rgb<u8>, color_2: Rgb<u8>) -> Vec<Rgb<u8>> {
 
 /// Gets the spectrum for a given triplet of colors.
 /// Each spectrum is a region of 3d color space that envelopes white -> colors -> black in a single region.
-fn get_3d_spectrum(color_1: Rgb<u8>, color_2: Rgb<u8>, color_3: Rgb<u8>) -> Vec<Rgb<u8>> {
+fn get_3d_spectrum(color_1: &Rgb<u8>, color_2: &Rgb<u8>, color_3: &Rgb<u8>) -> Vec<Rgb<u8>> {
     // creating the spectrum
     let mut spectrum = vec![];
     spectrum.extend(get_2d_spectrum(color_1, color_2));
@@ -295,18 +304,18 @@ pub fn get_average_color_from_pixels(pixels: &Vec<Rgb<u8>>) -> Rgb<u8> {
 }
 
 /// Returns whether a color is considered an accent color.
-fn is_accent_color(color: Rgb<u8>) -> bool {
+fn is_accent_color(color: &Rgb<u8>) -> bool {
     let r_value = color[0] as f32 * 0.299;
     let g_value = color[1] as f32 * 0.587;
     let b_value = color[2] as f32 * 0.114;
     let brightness = r_value + g_value + b_value;
     let perceived_greyscale_color = Rgb([brightness as u8, brightness as u8, brightness as u8]);
-    get_distance(color, perceived_greyscale_color, None) > color_region_differentiation() * accent_color_multiplier()
+    get_distance(color, &perceived_greyscale_color, &None) > color_region_differentiation() * accent_color_multiplier()
 }
 
 /// Returns whether two colors are different enough to be considered separate regions.
-fn is_different_color_region(color_1: Rgb<u8>, color_2: Rgb<u8>) -> bool {
-    get_distance(color_1, color_2, None) > color_region_differentiation()
+fn is_different_color_region(color_1: &Rgb<u8>, color_2: &Rgb<u8>) -> bool {
+    get_distance(color_1, color_2, &None) > color_region_differentiation()
 }
 
 /// Gets the average color from an image.
@@ -326,12 +335,12 @@ pub fn get_accent_color(image: &DynamicImage) -> Rgb<u8> {
     // collects all the accent regions from different threads
     let overlapping_accent_regions: Vec<Vec<Rgb<u8>>> = chunks.into_par_iter().flat_map(|chunk| {
         let mut accent_regions: Vec<Vec<Rgb<u8>>> = Vec::new();
-        chunk.into_iter().filter(|pixel| is_accent_color(*pixel)).for_each(|pixel| {
+        chunk.into_iter().filter(|pixel| is_accent_color(pixel)).for_each(|pixel| {
             // checks to see if the current pixel fits into an existing region
             let mut is_new_region = true;
             for region in &mut accent_regions {
                 // adds the pixel to the region if it fits
-                if !is_different_color_region(get_average_color_from_pixels(region), pixel) {
+                if !is_different_color_region(&get_average_color_from_pixels(region), &pixel) {
                     is_new_region = false;
                     region.push(pixel);
                     break;
@@ -357,7 +366,7 @@ pub fn get_accent_color(image: &DynamicImage) -> Rgb<u8> {
         for merged_region in &mut merged_accent_regions {
             let average_merged_region_color = get_average_color_from_pixels(merged_region);
             // merges the overlapping region into the merged region if it fits
-            if !is_different_color_region(average_overlapping_region_color, average_merged_region_color) {
+            if !is_different_color_region(&average_overlapping_region_color, &average_merged_region_color) {
                 merged_region.extend(overlapping_region);
                 merged = true;
                 break;
@@ -373,4 +382,178 @@ pub fn get_accent_color(image: &DynamicImage) -> Rgb<u8> {
     // gets the region with the most pixels and returns its average color
     let largest_region = merged_accent_regions.iter().max_by_key(|region| region.len()).unwrap();
     get_average_color_from_pixels(largest_region)
+}
+
+
+
+pub mod pallets {
+    use image::Rgb;
+
+    pub fn volcanic_crater() -> Vec<Rgb<u8>> {
+        vec![
+            Rgb([0, 0, 0]),
+            Rgb([28, 28, 28]),
+            Rgb([47, 79, 79]),
+            Rgb([105, 105, 105]),
+            Rgb([139, 0, 0]),
+            Rgb([165, 42, 42]),
+            Rgb([178, 34, 34]),
+            Rgb([220, 20, 60]),
+            Rgb([255, 69, 0]),
+            Rgb([255, 99, 71]),
+            Rgb([255, 140, 0]),
+            Rgb([255, 165, 0]),
+            Rgb([255, 215, 0]),
+        ]
+    }
+
+    pub fn red_rocks() -> Vec<Rgb<u8>> {
+        vec![
+            Rgb([139, 69, 19]),
+            Rgb([160, 82, 45]),
+            Rgb([205, 133, 63]),
+            Rgb([210, 105, 30]),
+            Rgb([184, 134, 11]),
+            Rgb([218, 165, 32]),
+            Rgb([233, 150, 122]),
+            Rgb([244, 164, 96]),
+            Rgb([188, 143, 143]),
+            Rgb([193, 154, 107]),
+        ]
+    }
+
+    pub fn deepest_africa() -> Vec<Rgb<u8>> {
+        vec![
+            Rgb([139, 69, 19]),
+            Rgb([160, 82, 45]),
+            Rgb([205, 133, 63]),
+            Rgb([210, 105, 30]),
+            Rgb([222, 184, 135]),
+            Rgb([244, 164, 96]),
+            Rgb([85, 107, 47]),
+            Rgb([107, 142, 35]),
+            Rgb([139, 115, 85]),
+            Rgb([184, 134, 11]),
+            Rgb([255, 99, 71]),
+            Rgb([255, 140, 0]),
+        ]
+    }
+
+    pub fn arctic_wilderness() -> Vec<Rgb<u8>> {
+        vec![
+            Rgb([224, 255, 255]),
+            Rgb([240, 248, 255]),
+            Rgb([240, 255, 255]),
+            Rgb([175, 238, 238]),
+            Rgb([176, 224, 230]),
+            Rgb([173, 216, 230]),
+            Rgb([135, 206, 235]),
+            Rgb([135, 206, 250]),
+            Rgb([70, 130, 180]),
+            Rgb([95, 158, 160]),
+            Rgb([112, 128, 144]),
+            Rgb([47, 79, 79]),
+        ]
+    }
+
+    pub fn iceland() -> Vec<Rgb<u8>> {
+        vec![
+            Rgb([47, 79, 79]),
+            Rgb([85, 107, 47]),
+            Rgb([112, 128, 144]),
+            Rgb([119, 136, 153]),
+            Rgb([143, 188, 143]),
+            Rgb([159, 182, 205]),
+            Rgb([176, 196, 222]),
+            Rgb([192, 192, 192]),
+            Rgb([210, 180, 140]),
+            Rgb([224, 238, 238]),
+            Rgb([240, 248, 255]),
+            Rgb([67, 67, 67]),
+        ]
+    }
+
+    pub fn english_oaks() -> Vec<Rgb<u8>> {
+        vec![
+            Rgb([47, 79, 47]),
+            Rgb([59, 83, 35]),
+            Rgb([85, 107, 47]),
+            Rgb([107, 142, 35]),
+            Rgb([128, 128, 0]),
+            Rgb([139, 69, 19]),
+            Rgb([143, 188, 143]),
+            Rgb([160, 82, 45]),
+            Rgb([189, 183, 107]),
+            Rgb([210, 105, 30]),
+            Rgb([222, 184, 135]),
+        ]
+    }
+
+    pub fn wheat_field() -> Vec<Rgb<u8>> {
+        vec![
+            Rgb([184, 134, 11]),
+            Rgb([218, 165, 32]),
+            Rgb([210, 180, 140]),
+            Rgb([222, 184, 135]),
+            Rgb([240, 230, 140]),
+            Rgb([245, 222, 179]),
+            Rgb([255, 228, 181]),
+            Rgb([255, 239, 213]),
+            Rgb([255, 248, 220]),
+            Rgb([255, 250, 205]),
+        ]
+    }
+
+    pub fn south_american_jungle() -> Vec<Rgb<u8>> {
+        vec![
+            Rgb([0, 100, 0]),
+            Rgb([34, 139, 34]),
+            Rgb([46, 139, 87]),
+            Rgb([60, 179, 113]),
+            Rgb([85, 107, 47]),
+            Rgb([107, 142, 35]),
+            Rgb([128, 128, 0]),
+            Rgb([139, 69, 19]),
+            Rgb([154, 205, 50]),
+            Rgb([173, 255, 47]),
+            Rgb([255, 69, 0]),
+            Rgb([255, 215, 0]),
+            Rgb([28, 28, 28]),
+        ]
+    }
+
+    pub fn european_islands() -> Vec<Rgb<u8>> {
+        vec![
+            Rgb([0, 206, 209]),
+            Rgb([32, 178, 170]),
+            Rgb([60, 179, 113]),
+            Rgb([70, 130, 180]),
+            Rgb([102, 205, 170]),
+            Rgb([112, 128, 144]),
+            Rgb([135, 206, 235]),
+            Rgb([143, 188, 143]),
+            Rgb([176, 196, 222]),
+            Rgb([210, 180, 140]),
+            Rgb([222, 184, 135]),
+            Rgb([245, 245, 220]),
+        ]
+    }
+
+    pub fn colorful_islands() -> Vec<Rgb<u8>> {
+        vec![
+            Rgb([0, 100, 0]),
+            Rgb([0, 139, 139]),
+            Rgb([0, 206, 209]),
+            Rgb([30, 144, 255]),
+            Rgb([32, 178, 170]),
+            Rgb([34, 139, 34]),
+            Rgb([64, 224, 208]),
+            Rgb([72, 209, 204]),
+            Rgb([255, 215, 0]),
+            Rgb([245, 222, 179]),
+            Rgb([250, 250, 210]),
+            Rgb([255, 99, 71]),
+            Rgb([255, 127, 80]),
+        ]
+    }
 }

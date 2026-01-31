@@ -25,6 +25,16 @@ pub enum Processors {
     BichromaticBlend,
     BichromaticBlendWithAccent,
     Trichromatic,
+    VolcanicCrater,
+    RedRocks,
+    DeepestAfrica,
+    ArcticWilderness,
+    Iceland,
+    EnglishOaks,
+    WheatField,
+    SouthAmericanJungle,
+    EuropeanIslands,
+    ColorfulIslands,
 }
 impl Processors {
     /// Returns the name of a given processor type.
@@ -37,11 +47,22 @@ impl Processors {
             Processors::BichromaticBlend => "Bichromatic Blend".to_string(),
             Processors::BichromaticBlendWithAccent => "Bichromatic Blend with Accent".to_string(),
             Processors::Trichromatic => "Trichromatic".to_string(),
+            Processors::VolcanicCrater => "Volcanic Crater".to_string(),
+            Processors::RedRocks => "Red Rocks".to_string(),
+            Processors::DeepestAfrica => "Deepest Africa".to_string(),
+            Processors::ArcticWilderness => "Arctic Wilderness".to_string(),
+            Processors::Iceland => "Iceland".to_string(),
+            Processors::EnglishOaks => "English Oaks".to_string(),
+            Processors::WheatField => "Wheat Field".to_string(),
+            Processors::SouthAmericanJungle => "South American Jungle".to_string(),
+            Processors::EuropeanIslands => "European Islands".to_string(),
+            Processors::ColorfulIslands => "Colorful Islands".to_string(),
+
         }
     }
 
     /// Returns the number of available processors.
-    pub fn number_of_processors() -> usize { 7 }
+    pub fn number_of_processors() -> usize { 17 }
 
     /// Gets the processor type that corresponds to a given index.
     pub fn get_processor(selection: usize) -> Processors {
@@ -53,6 +74,16 @@ impl Processors {
             4 => Processors::BichromaticBlend,
             5 => Processors::BichromaticBlendWithAccent,
             6 => Processors::Trichromatic,
+            7 => Processors::VolcanicCrater,
+            8 => Processors::RedRocks,
+            9 => Processors::DeepestAfrica,
+            10 => Processors::ArcticWilderness,
+            11 => Processors::Iceland,
+            12 => Processors::EnglishOaks,
+            13 => Processors::WheatField,
+            14 => Processors::SouthAmericanJungle,
+            15 => Processors::EuropeanIslands,
+            16 => Processors::ColorfulIslands,
             _ => panic!("Invalid processor selection: {}", selection),
         }
     }
@@ -154,7 +185,7 @@ impl EditProcessor for MonochromaticEdit {
         let base_color_hex_result = self.guide.steps[0].as_hex();
         if base_color_hex_result.is_some() {
             self.base_color_hex = base_color_hex_result.unwrap();
-            self.base_color_rgb = as_rgb(self.base_color_hex.clone()).unwrap();
+            self.base_color_rgb = as_rgb(&self.base_color_hex).unwrap();
         }
         else { return; }
 
@@ -167,7 +198,7 @@ impl EditProcessor for MonochromaticEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let spectrum = get_1d_spectrum(self.base_color_rgb);
+            let spectrum = get_1d_spectrum(&self.base_color_rgb);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -202,7 +233,7 @@ impl AutomaticMonochromaticWithAccentEdit {
 }
 impl EditProcessor for AutomaticMonochromaticWithAccentEdit {
     fn get_color_set(&self) -> String { // todo get the automatic color selection
-        "Automatic with Accent".to_string()
+        "Pallet with Accent".to_string()
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -239,8 +270,8 @@ impl EditProcessor for AutomaticMonochromaticWithAccentEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let base_spectrum = get_1d_spectrum(get_average_color_from_image(&source_image));
-            let accent_spectrum = get_1d_spectrum(get_accent_color(&source_image));
+            let base_spectrum = get_1d_spectrum(&get_average_color_from_image(&source_image));
+            let accent_spectrum = get_1d_spectrum(&get_accent_color(&source_image));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_biased(source_image, base_spectrum, accent_spectrum))
@@ -275,7 +306,7 @@ impl AutomaticMonochromaticEdit {
 }
 impl EditProcessor for AutomaticMonochromaticEdit {
     fn get_color_set(&self) -> String { // todo get the automatic color selection
-        "Automatic".to_string()
+        "Pallet".to_string()
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -312,7 +343,7 @@ impl EditProcessor for AutomaticMonochromaticEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let spectrum = get_1d_spectrum(get_average_color_from_image(&source_image));
+            let spectrum = get_1d_spectrum(&get_average_color_from_image(&source_image));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -394,12 +425,12 @@ impl EditProcessor for BichromaticEdit {
         let base_color_hex_2_result = self.guide.steps[1].as_hex();
         if base_color_hex_1_result.is_some() {
             self.base_color_1_hex = base_color_hex_1_result.unwrap();
-            self.base_color_1_rgb = as_rgb(self.base_color_1_hex.clone()).unwrap();
+            self.base_color_1_rgb = as_rgb(&self.base_color_1_hex).unwrap();
         }
         else { return; }
         if base_color_hex_2_result.is_some() {
             self.base_color_2_hex = base_color_hex_2_result.unwrap();
-            self.base_color_2_rgb = as_rgb(self.base_color_2_hex.clone()).unwrap();
+            self.base_color_2_rgb = as_rgb(&self.base_color_2_hex).unwrap();
         }
         else { return; }
         
@@ -412,8 +443,8 @@ impl EditProcessor for BichromaticEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_1d_spectrum(self.base_color_1_rgb);
-            spectrum.extend(get_1d_spectrum(self.base_color_2_rgb));
+            let mut spectrum = get_1d_spectrum(&self.base_color_1_rgb);
+            spectrum.extend(get_1d_spectrum(&self.base_color_2_rgb));
             spectrum = remove_duplicates_unordered(spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
@@ -496,12 +527,12 @@ impl EditProcessor for BichromaticBlendEdit {
         let base_color_hex_2_result = self.guide.steps[1].as_hex();
         if base_color_hex_1_result.is_some() {
             self.base_color_1_hex = base_color_hex_1_result.unwrap();
-            self.base_color_1_rgb = as_rgb(self.base_color_1_hex.clone()).unwrap();
+            self.base_color_1_rgb = as_rgb(&self.base_color_1_hex).unwrap();
         }
         else { return; }
         if base_color_hex_2_result.is_some() {
             self.base_color_2_hex = base_color_hex_2_result.unwrap();
-            self.base_color_2_rgb = as_rgb(self.base_color_2_hex.clone()).unwrap();
+            self.base_color_2_rgb = as_rgb(&self.base_color_2_hex).unwrap();
         }
         else { return; }
 
@@ -514,7 +545,7 @@ impl EditProcessor for BichromaticBlendEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let spectrum = get_2d_spectrum(self.base_color_1_rgb, self.base_color_2_rgb);
+            let spectrum = get_2d_spectrum(&self.base_color_1_rgb, &self.base_color_2_rgb);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -596,12 +627,12 @@ impl EditProcessor for BichromaticBlendWithAccentEdit {
         let base_color_hex_2_result = self.guide.steps[1].as_hex();
         if base_color_hex_1_result.is_some() {
             self.base_color_1_hex = base_color_hex_1_result.unwrap();
-            self.base_color_1_rgb = as_rgb(self.base_color_1_hex.clone()).unwrap();
+            self.base_color_1_rgb = as_rgb(&self.base_color_1_hex).unwrap();
         }
         else { return; }
         if base_color_hex_2_result.is_some() {
             self.base_color_2_hex = base_color_hex_2_result.unwrap();
-            self.base_color_2_rgb = as_rgb(self.base_color_2_hex.clone()).unwrap();
+            self.base_color_2_rgb = as_rgb(&self.base_color_2_hex).unwrap();
         }
         else { return; }
 
@@ -614,8 +645,8 @@ impl EditProcessor for BichromaticBlendWithAccentEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let base_spectrum = get_2d_spectrum(self.base_color_1_rgb, self.base_color_2_rgb);
-            let accent_spectrum = get_1d_spectrum(get_accent_color(&source_image));
+            let base_spectrum = get_2d_spectrum(&self.base_color_1_rgb, &self.base_color_2_rgb);
+            let accent_spectrum = get_1d_spectrum(&get_accent_color(&source_image));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_biased(source_image, base_spectrum, accent_spectrum))
@@ -705,17 +736,17 @@ impl EditProcessor for TrichromaticEdit {
         let base_color_hex_3_result = self.guide.steps[2].as_hex();
         if base_color_hex_1_result.is_some() {
             self.base_color_1_hex = base_color_hex_1_result.unwrap();
-            self.base_color_1_rgb = as_rgb(self.base_color_1_hex.clone()).unwrap();
+            self.base_color_1_rgb = as_rgb(&self.base_color_1_hex).unwrap();
         }
         else { return; }
         if base_color_hex_2_result.is_some() {
             self.base_color_2_hex = base_color_hex_2_result.unwrap();
-            self.base_color_2_rgb = as_rgb(self.base_color_2_hex.clone()).unwrap();
+            self.base_color_2_rgb = as_rgb(&self.base_color_2_hex).unwrap();
         }
         else { return; }
         if base_color_hex_3_result.is_some() {
             self.base_color_3_hex = base_color_hex_3_result.unwrap();
-            self.base_color_3_rgb = as_rgb(self.base_color_3_hex.clone()).unwrap();
+            self.base_color_3_rgb = as_rgb(&self.base_color_3_hex).unwrap();
         }
         else { return; }
 
@@ -728,13 +759,723 @@ impl EditProcessor for TrichromaticEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_1d_spectrum(self.base_color_1_rgb);
-            spectrum.extend(get_1d_spectrum(self.base_color_2_rgb));
-            spectrum.extend(get_1d_spectrum(self.base_color_3_rgb));
+            let mut spectrum = get_1d_spectrum(&self.base_color_1_rgb);
+            spectrum.extend(get_1d_spectrum(&self.base_color_2_rgb));
+            spectrum.extend(get_1d_spectrum(&self.base_color_3_rgb));
             spectrum = remove_duplicates_unordered(spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image with a volcanic crater themed pallet.
+pub struct VolcanicCraterEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl VolcanicCraterEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> VolcanicCraterEdit {
+        VolcanicCraterEdit {
+            source_image_path,
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for VolcanicCraterEdit {
+    fn get_color_set(&self) -> String {
+        "Pallet".to_string()
+    }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::volcanic_crater())))
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image with a red rocks themed pallet.
+pub struct RedRocksEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl RedRocksEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> RedRocksEdit {
+        RedRocksEdit {
+            source_image_path,
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for RedRocksEdit {
+    fn get_color_set(&self) -> String {
+        "Pallet".to_string()
+    }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::red_rocks())))
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image with a deepest africa themed pallet.
+pub struct DeepestAfricaEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl DeepestAfricaEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> DeepestAfricaEdit {
+        DeepestAfricaEdit {
+            source_image_path,
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for DeepestAfricaEdit {
+    fn get_color_set(&self) -> String {
+        "Pallet".to_string()
+    }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::deepest_africa())))
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image with an arctic wilderness themed pallet.
+pub struct ArcticWildernessEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl ArcticWildernessEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> ArcticWildernessEdit {
+        ArcticWildernessEdit {
+            source_image_path,
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for ArcticWildernessEdit {
+    fn get_color_set(&self) -> String {
+        "Pallet".to_string()
+    }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::arctic_wilderness())))
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image with an iceland themed pallet.
+pub struct IcelandEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl IcelandEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> IcelandEdit {
+        IcelandEdit {
+            source_image_path,
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for IcelandEdit {
+    fn get_color_set(&self) -> String {
+        "Pallet".to_string()
+    }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::iceland())))
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image with an english oaks themed pallet.
+pub struct EnglishOaksEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl EnglishOaksEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> EnglishOaksEdit {
+        EnglishOaksEdit {
+            source_image_path,
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for EnglishOaksEdit {
+    fn get_color_set(&self) -> String {
+        "Pallet".to_string()
+    }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::english_oaks())))
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image with a wheat field themed pallet.
+pub struct WheatFieldEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl WheatFieldEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> WheatFieldEdit {
+        WheatFieldEdit {
+            source_image_path,
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for WheatFieldEdit {
+    fn get_color_set(&self) -> String {
+        "Pallet".to_string()
+    }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::wheat_field())))
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image with a south american jungle themed pallet.
+pub struct SouthAmericanJungleEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl SouthAmericanJungleEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> SouthAmericanJungleEdit {
+        SouthAmericanJungleEdit {
+            source_image_path,
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for SouthAmericanJungleEdit {
+    fn get_color_set(&self) -> String {
+        "Pallet".to_string()
+    }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::south_american_jungle())))
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image with a european islands themed pallet.
+pub struct EuropeanIslandsEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl EuropeanIslandsEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> EuropeanIslandsEdit {
+        EuropeanIslandsEdit {
+            source_image_path,
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for EuropeanIslandsEdit {
+    fn get_color_set(&self) -> String {
+        "Pallet".to_string()
+    }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::european_islands())))
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image with a colorful islands themed pallet.
+pub struct ColorfulIslandsEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl ColorfulIslandsEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> ColorfulIslandsEdit {
+        ColorfulIslandsEdit {
+            source_image_path,
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for ColorfulIslandsEdit {
+    fn get_color_set(&self) -> String {
+        "Pallet".to_string()
+    }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::colorful_islands())))
         }
 
         None
