@@ -6,6 +6,7 @@ use ratatui::prelude::*;
 use crate::ui::{render_current_page, Instruction};
 use std::io::{Error, Result};
 use std::string::String;
+use std::time::{Duration, Instant};
 use image::{ImageBuffer, Rgb};
 use img_parts::ImageEXIF;
 use ratatui::backend::Backend;
@@ -13,6 +14,7 @@ use ratatui::Terminal;
 use crate::processor::*;
 use img_parts::jpeg::Jpeg;
 use img_parts::png::Png;
+use wgpu::Instance;
 
 /// The list of pages in the application.
 #[derive(Copy, Clone)]
@@ -46,6 +48,8 @@ pub struct App {
     pub selected_processor: Option<Box<dyn EditProcessor>>,
     /// The new image for editing.
     pub new_image: Option<ImageBuffer<Rgb<u8>, Vec<u8>>>,
+    /// The time it took to process the image
+    pub processing_time: Duration,
 }
 impl App {
     /// Returns a new application state container.
@@ -60,6 +64,7 @@ impl App {
             current_processor_selection: 0,
             selected_processor: None,
             new_image: None,
+            processing_time: Duration::new(0, 0),
         };
 
         app.update_selected_image_path();
@@ -244,6 +249,9 @@ impl App {
                         if let Some(processor) = &mut self.selected_processor {
                             // trying to finish the current step
                             if key.code == Instruction::confirm_instruction().keybind {
+                                let processing_timer = Instant::now();
+
+
                                 processor.try_finish_current_step();
                                 processor.try_populate();
 
@@ -305,6 +313,7 @@ impl App {
 
 
                                             // finished
+                                            self.processing_time = processing_timer.elapsed();
                                             self.current_page = Pages::Finished
                                         }
 

@@ -74,7 +74,10 @@ pub fn render_current_page(frame: &mut Frame, app: &App) {
         }
 
         Pages::Finished => {
-            let body = Paragraph::new("Saved");
+            let body = Paragraph::new(vec![
+                Line::raw("Saved"),
+                Line::raw(format!("Processed in {:.3} seconds", app.processing_time.as_millis() as f64 / 1000.0)),
+            ]);
             frame.render_widget(body, leaflets[1]);
         }
     }
