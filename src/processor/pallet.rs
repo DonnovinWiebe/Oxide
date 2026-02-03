@@ -15,7 +15,11 @@ use crate::ui::render_loading;
 fn color_region_differentiation() -> f32 { 8.0 }
 
 /// Gets the standard multiplier to determine what is considered an accent color (applied to color_region_differentiation()).
-fn accent_color_multiplier() -> f32 { 2.0 }
+fn accent_color_multiplier() -> f32 { 1.5 }
+
+
+/// Gets the max size a pallet can be.
+fn max_pallet_size() -> usize { 50000 }
 
 /// Gets the standard bias for biased colorizing.
 fn standard_bias() -> f32 { 1.5 }
@@ -65,8 +69,48 @@ pub fn as_rgb(hex: &String) -> Option<Rgb<u8>> {
     Some(Rgb([r, g, b]))
 }
 
+/// Reduces the pallet size to be used efficiently.
+fn condense_color_pallet(pallet: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
+    // checks if the pallet is already small enough
+    let pallet = remove_duplicates_unordered(pallet.clone());
+    if pallet.len() < max_pallet_size() { return pallet; }
+
+    // sets up tracking variables
+    let mut similar_color_threshold = 0.0;
+    let mut current_reduction_iteration = 0;
+    // the condensed pallet being built
+    let mut condensed_pallet = pallet.clone();
+    // continues iterating until the pallet is small enough
+    while condensed_pallet.len() > max_pallet_size() {
+        // checks if the pallet is not being reduced fast enough in order to prevent infinite loops
+        current_reduction_iteration += 1;
+        if current_reduction_iteration > 50 { panic!("Failed to condense pallet in 1000 passes. Max size: {} Got: {}", max_pallet_size(), condensed_pallet.len()); }
+
+        // increments the similar_color_threshold with each iteration
+        similar_color_threshold += 1.0;
+        // creates a new condensed pallet at the current threshold
+        let mut new_condensed_pallet = Vec::new();
+        for color in &condensed_pallet {
+            let mut already_added = false;
+            for condensed_color in &new_condensed_pallet {
+                if get_distance(&color, condensed_color, &None) < similar_color_threshold {
+                    already_added = true;
+                    break;
+                }
+            }
+            if !already_added { new_condensed_pallet.push(color.clone()); }
+        }
+
+        // updates the condensed pallet
+        condensed_pallet = new_condensed_pallet;
+    }
+
+    // returns the condensed pallet
+    condensed_pallet
+}
+
 /// Removes duplicate colors from a given list of colors while maintaining the original order.
-pub fn remove_duplicates_ordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>) -> Vec<T> {
+fn remove_duplicates_ordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>) -> Vec<T> {
     let mut seen = HashSet::new();
     data.into_iter().filter(|item| seen.insert(item.clone())).collect()
 }
@@ -156,7 +200,7 @@ fn get_colors_between(color_1: &Rgb<u8>, color_2: &Rgb<u8>) -> Vec<Rgb<u8>> {
 
 /// Gets the spectrum for a given color.
 /// Each spectrum is a smooth gradient from white -> color -> black.
-pub fn get_1d_spectrum(color: &Rgb<u8>) -> Vec<Rgb<u8>> {
+pub fn get_line_spectrum(color: &Rgb<u8>) -> Vec<Rgb<u8>> {
     // getting the spectrum
     let mut spectrum = vec![];
     spectrum.extend(get_colors_between(&white(), color));
@@ -170,24 +214,23 @@ pub fn get_1d_spectrum(color: &Rgb<u8>) -> Vec<Rgb<u8>> {
 }
 
 /// Gets the 1d spectrums for all the colors in a given pallet and returns the results as a single pallet.
-pub fn get_1d_spectrums_for_pallet(pallet: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
-    let sum_pallet = pallet.par_iter().flat_map(|color| {
-        get_1d_spectrum(color)
-    }).collect();
+pub fn get_line_spectrums(pallet: &Vec<Rgb<u8>>) -> Vec<Vec<Rgb<u8>>> {
+    let mut line_spectrums = Vec::new();
+    pallet.iter().for_each(|color| {
+        line_spectrums.push(get_line_spectrum(color));
+    });
 
-    remove_duplicates_ordered(sum_pallet)
+    line_spectrums
 }
 
 /// Gets the spectrum for a given pair of colors.
 /// Each spectrum is a region of 3d color space that envelopes white -> colors -> black in one or two connected planes.
-pub fn get_2d_spectrum(color_1: &Rgb<u8>, color_2: &Rgb<u8>) -> Vec<Rgb<u8>> {
-    let spectrum_1 = get_1d_spectrum(color_1);
-    let spectrum_2 = get_1d_spectrum(color_2);
-    let spectrum_steps = min(spectrum_1.len(), spectrum_2.len());
+pub fn get_plane_spectrum(line_spectrum_1: &Vec<Rgb<u8>>, line_spectrum_2: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
+    let spectrum_steps = min(line_spectrum_1.len(), line_spectrum_2.len());
 
     let mut spectrum: Vec<Rgb<u8>> = (0..spectrum_steps).into_par_iter().flat_map(|i| {
-        let mut colors_between = get_colors_between(&spectrum_1[i], &spectrum_2[i]);
-        colors_between.extend(get_colors_between(&spectrum_1[spectrum_1.len() - 1 - i], &spectrum_2[spectrum_2.len() - 1 - i]));
+        let mut colors_between = get_colors_between(&line_spectrum_1[i], &line_spectrum_2[i]);
+        colors_between.extend(get_colors_between(&line_spectrum_1[line_spectrum_1.len() - 1 - i], &line_spectrum_2[line_spectrum_2.len() - 1 - i]));
         colors_between
     }).collect();
 
@@ -196,78 +239,16 @@ pub fn get_2d_spectrum(color_1: &Rgb<u8>, color_2: &Rgb<u8>) -> Vec<Rgb<u8>> {
     spectrum
 }
 
-/// Gets the spectrum for a given triplet of colors.
-/// Each spectrum is a region of 3d color space that envelopes white -> colors -> black in a single region.
-fn get_3d_spectrum(color_1: &Rgb<u8>, color_2: &Rgb<u8>, color_3: &Rgb<u8>) -> Vec<Rgb<u8>> {
-    // creating the spectrum
-    let mut spectrum = vec![];
-    spectrum.extend(get_2d_spectrum(color_1, color_2));
-    spectrum.extend(get_2d_spectrum(color_2, color_3));
-    spectrum.extend(get_2d_spectrum(color_3, color_1));
-    spectrum = remove_duplicates_ordered(spectrum);
-
-    for b in 0..=255 {
-        let inside_colors = get_inside_colors_at_blue_value(&spectrum, b);
-        spectrum.extend(inside_colors);
-    }
-
-    // removes duplicates from the spectrum
-    spectrum = remove_duplicates_ordered(spectrum);
-
-    // returns the spectrum
-    spectrum
-}
-
-/// Returns the colors in 3d color space that are inside the listed color points at the given blue coordinate plane.
-fn get_inside_colors_at_blue_value(all_edge_colors: &Vec<Rgb<u8>>, blue_value: u8) -> Vec<Rgb<u8>> {
-    // I do not understand this code.
-    // It was generated by ChatGPT and styled by me.
-    // - Donnovin
-
-    let mut inside_colors = vec![];
-
-    let mut edge_colors = vec![];
-    for color in all_edge_colors {
-        if color[2] == blue_value { edge_colors.push(color); }
-    }
-    if edge_colors.is_empty() { return inside_colors; }
-
-    let mut lowest_r = 255;
-    let mut lowest_g = 255;
-    let mut highest_r = 0;
-    let mut highest_g = 0;
-    for blue_match in &edge_colors {
-        lowest_r = lowest_r.min(blue_match[0]);
-        lowest_g = lowest_g.min(blue_match[1]);
-        highest_r = highest_r.max(blue_match[0]);
-        highest_g = highest_g.max(blue_match[1]);
-    }
-
-    for r in lowest_r..=highest_r {
-        for g in lowest_g..=highest_g {
-            let mut inside = true;
-
-            for i in 0..edge_colors.len() {
-                let a = edge_colors[i];
-                let b = edge_colors[(i + 1) % edge_colors.len()];
-
-                let cross =
-                    (r - a[0]) * (b[1] - a[1]) -
-                        (g - a[1]) * (b[0] - a[0]);
-
-                if cross < 0 {
-                    inside = false;
-                    break;
-                }
-            }
-
-            if inside {
-                inside_colors.push(Rgb([r, g, blue_value]));
-            }
+/// Combines all the plane spectrums between all line spectrums in a given list.
+pub fn get_web_spectrum(line_spectrums: &Vec<Vec<Rgb<u8>>>) -> Vec<Rgb<u8>> {
+    let mut spectrum = Vec::new();
+    for x in 0..line_spectrums.len() {
+        for y in 0..line_spectrums.len() {
+            if x != y { spectrum.extend(get_plane_spectrum(&line_spectrums[x], &line_spectrums[y])); }
         }
     }
 
-    inside_colors
+    condense_color_pallet(&spectrum)
 }
 
 /// Gets the average color from an image.
@@ -334,21 +315,11 @@ pub fn get_accent_color(image: &DynamicImage) -> Rgb<u8> {
 
 pub mod pallets {
     use image::Rgb;
-
     pub fn volcanic_crater() -> Vec<Rgb<u8>> {
         vec![
-            Rgb([0, 0, 0]),
-            Rgb([28, 28, 28]),
             Rgb([47, 79, 79]),
-            Rgb([105, 105, 105]),
             Rgb([139, 0, 0]),
-            Rgb([165, 42, 42]),
-            Rgb([178, 34, 34]),
-            Rgb([220, 20, 60]),
             Rgb([255, 69, 0]),
-            Rgb([255, 99, 71]),
-            Rgb([255, 140, 0]),
-            Rgb([255, 165, 0]),
             Rgb([255, 215, 0]),
         ]
     }
@@ -356,49 +327,28 @@ pub mod pallets {
     pub fn red_rocks() -> Vec<Rgb<u8>> {
         vec![
             Rgb([139, 69, 19]),
-            Rgb([160, 82, 45]),
-            Rgb([205, 133, 63]),
-            Rgb([210, 105, 30]),
             Rgb([184, 134, 11]),
-            Rgb([218, 165, 32]),
             Rgb([233, 150, 122]),
-            Rgb([244, 164, 96]),
             Rgb([188, 143, 143]),
-            Rgb([193, 154, 107]),
         ]
     }
 
     pub fn deepest_africa() -> Vec<Rgb<u8>> {
         vec![
-            Rgb([139, 69, 19]),
-            Rgb([160, 82, 45]),
-            Rgb([205, 133, 63]),
-            Rgb([210, 105, 30]),
-            Rgb([222, 184, 135]),
-            Rgb([244, 164, 96]),
             Rgb([85, 107, 47]),
-            Rgb([107, 142, 35]),
-            Rgb([139, 115, 85]),
+            Rgb([139, 69, 19]),
             Rgb([184, 134, 11]),
+            Rgb([222, 184, 135]),
             Rgb([255, 99, 71]),
-            Rgb([255, 140, 0]),
         ]
     }
 
     pub fn arctic_wilderness() -> Vec<Rgb<u8>> {
         vec![
-            Rgb([224, 255, 255]),
-            Rgb([240, 248, 255]),
-            Rgb([240, 255, 255]),
-            Rgb([175, 238, 238]),
-            Rgb([176, 224, 230]),
-            Rgb([173, 216, 230]),
-            Rgb([135, 206, 235]),
-            Rgb([135, 206, 250]),
+            Rgb([47, 79, 79]),
             Rgb([70, 130, 180]),
             Rgb([95, 158, 160]),
-            Rgb([112, 128, 144]),
-            Rgb([47, 79, 79]),
+            Rgb([173, 216, 230]),
         ]
     }
 
@@ -407,31 +357,19 @@ pub mod pallets {
             Rgb([47, 79, 79]),
             Rgb([85, 107, 47]),
             Rgb([112, 128, 144]),
-            Rgb([119, 136, 153]),
             Rgb([143, 188, 143]),
-            Rgb([159, 182, 205]),
             Rgb([176, 196, 222]),
-            Rgb([192, 192, 192]),
             Rgb([210, 180, 140]),
-            Rgb([224, 238, 238]),
-            Rgb([240, 248, 255]),
-            Rgb([67, 67, 67]),
         ]
     }
 
     pub fn english_oaks() -> Vec<Rgb<u8>> {
         vec![
             Rgb([47, 79, 47]),
-            Rgb([59, 83, 35]),
-            Rgb([85, 107, 47]),
             Rgb([107, 142, 35]),
             Rgb([128, 128, 0]),
             Rgb([139, 69, 19]),
-            Rgb([143, 188, 143]),
-            Rgb([160, 82, 45]),
             Rgb([189, 183, 107]),
-            Rgb([210, 105, 30]),
-            Rgb([222, 184, 135]),
         ]
     }
 
@@ -439,49 +377,32 @@ pub mod pallets {
         vec![
             Rgb([184, 134, 11]),
             Rgb([218, 165, 32]),
-            Rgb([210, 180, 140]),
-            Rgb([222, 184, 135]),
             Rgb([240, 230, 140]),
-            Rgb([245, 222, 179]),
-            Rgb([255, 228, 181]),
-            Rgb([255, 239, 213]),
             Rgb([255, 248, 220]),
-            Rgb([255, 250, 205]),
         ]
     }
 
     pub fn south_american_jungle() -> Vec<Rgb<u8>> {
         vec![
             Rgb([0, 100, 0]),
-            Rgb([34, 139, 34]),
             Rgb([46, 139, 87]),
-            Rgb([60, 179, 113]),
             Rgb([85, 107, 47]),
-            Rgb([107, 142, 35]),
             Rgb([128, 128, 0]),
             Rgb([139, 69, 19]),
-            Rgb([154, 205, 50]),
             Rgb([173, 255, 47]),
             Rgb([255, 69, 0]),
             Rgb([255, 215, 0]),
-            Rgb([28, 28, 28]),
         ]
     }
 
     pub fn european_islands() -> Vec<Rgb<u8>> {
         vec![
             Rgb([0, 206, 209]),
-            Rgb([32, 178, 170]),
             Rgb([60, 179, 113]),
             Rgb([70, 130, 180]),
-            Rgb([102, 205, 170]),
             Rgb([112, 128, 144]),
-            Rgb([135, 206, 235]),
             Rgb([143, 188, 143]),
-            Rgb([176, 196, 222]),
             Rgb([210, 180, 140]),
-            Rgb([222, 184, 135]),
-            Rgb([245, 245, 220]),
         ]
     }
 
@@ -489,17 +410,11 @@ pub mod pallets {
         vec![
             Rgb([0, 100, 0]),
             Rgb([0, 139, 139]),
-            Rgb([0, 206, 209]),
             Rgb([30, 144, 255]),
-            Rgb([32, 178, 170]),
-            Rgb([34, 139, 34]),
             Rgb([64, 224, 208]),
-            Rgb([72, 209, 204]),
-            Rgb([255, 215, 0]),
             Rgb([245, 222, 179]),
-            Rgb([250, 250, 210]),
             Rgb([255, 99, 71]),
-            Rgb([255, 127, 80]),
+            Rgb([255, 215, 0]),
         ]
     }
 }
@@ -507,7 +422,7 @@ pub mod pallets {
 
 
 /// Maps out which accent colors are the most prominent in list of colors.
-struct AccentMap {
+struct AccentMap { // based on a color_region_differentiation() being 8.0
     /// The map of possible accents.
     map: Vec<Vec<Vec<f32>>>,
     /// Tracks which accent score is the greatest as the map is being built.

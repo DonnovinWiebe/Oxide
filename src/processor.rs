@@ -198,7 +198,7 @@ impl EditProcessor for MonochromaticEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let spectrum = get_1d_spectrum(&self.base_color_rgb);
+            let spectrum = get_line_spectrum(&self.base_color_rgb);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -270,8 +270,8 @@ impl EditProcessor for AutomaticMonochromaticWithAccentEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let base_spectrum = get_1d_spectrum(&get_average_color_from_image(&source_image));
-            let accent_spectrum = get_1d_spectrum(&get_accent_color(&source_image));
+            let base_spectrum = get_line_spectrum(&get_average_color_from_image(&source_image));
+            let accent_spectrum = get_line_spectrum(&get_accent_color(&source_image));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_biased(source_image, base_spectrum, accent_spectrum))
@@ -343,7 +343,7 @@ impl EditProcessor for AutomaticMonochromaticEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let spectrum = get_1d_spectrum(&get_average_color_from_image(&source_image));
+            let spectrum = get_line_spectrum(&get_average_color_from_image(&source_image));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -443,8 +443,8 @@ impl EditProcessor for BichromaticEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_1d_spectrum(&self.base_color_1_rgb);
-            spectrum.extend(get_1d_spectrum(&self.base_color_2_rgb));
+            let mut spectrum = get_line_spectrum(&self.base_color_1_rgb);
+            spectrum.extend(get_line_spectrum(&self.base_color_2_rgb));
             spectrum = remove_duplicates_unordered(spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
@@ -545,7 +545,7 @@ impl EditProcessor for BichromaticBlendEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let spectrum = get_2d_spectrum(&self.base_color_1_rgb, &self.base_color_2_rgb);
+            let spectrum = get_plane_spectrum(&get_line_spectrum(&self.base_color_1_rgb), &get_line_spectrum(&self.base_color_2_rgb));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -645,8 +645,8 @@ impl EditProcessor for BichromaticBlendWithAccentEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let base_spectrum = get_2d_spectrum(&self.base_color_1_rgb, &self.base_color_2_rgb);
-            let accent_spectrum = get_1d_spectrum(&get_accent_color(&source_image));
+            let base_spectrum = get_plane_spectrum(&get_line_spectrum(&self.base_color_1_rgb), &get_line_spectrum(&self.base_color_2_rgb));
+            let accent_spectrum = get_line_spectrum(&get_accent_color(&source_image));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_biased(source_image, base_spectrum, accent_spectrum))
@@ -759,9 +759,9 @@ impl EditProcessor for TrichromaticEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_1d_spectrum(&self.base_color_1_rgb);
-            spectrum.extend(get_1d_spectrum(&self.base_color_2_rgb));
-            spectrum.extend(get_1d_spectrum(&self.base_color_3_rgb));
+            let mut spectrum = get_line_spectrum(&self.base_color_1_rgb);
+            spectrum.extend(get_line_spectrum(&self.base_color_2_rgb));
+            spectrum.extend(get_line_spectrum(&self.base_color_3_rgb));
             spectrum = remove_duplicates_unordered(spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
@@ -834,9 +834,10 @@ impl EditProcessor for VolcanicCraterEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::volcanic_crater()));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::volcanic_crater())))
+            return Some(process_evenly(source_image, web_spectrum));
         }
 
         None
@@ -905,9 +906,10 @@ impl EditProcessor for RedRocksEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::red_rocks()));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::red_rocks())))
+            return Some(process_evenly(source_image, web_spectrum));
         }
 
         None
@@ -976,9 +978,10 @@ impl EditProcessor for DeepestAfricaEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::deepest_africa()));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::deepest_africa())))
+            return Some(process_evenly(source_image, web_spectrum));
         }
 
         None
@@ -1047,9 +1050,10 @@ impl EditProcessor for ArcticWildernessEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::arctic_wilderness()));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::arctic_wilderness())))
+            return Some(process_evenly(source_image, web_spectrum));
         }
 
         None
@@ -1118,9 +1122,10 @@ impl EditProcessor for IcelandEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::iceland()));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::iceland())))
+            return Some(process_evenly(source_image, web_spectrum));
         }
 
         None
@@ -1189,9 +1194,10 @@ impl EditProcessor for EnglishOaksEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::english_oaks()));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::english_oaks())))
+            return Some(process_evenly(source_image, web_spectrum));
         }
 
         None
@@ -1260,9 +1266,10 @@ impl EditProcessor for WheatFieldEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::wheat_field()));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::wheat_field())))
+            return Some(process_evenly(source_image, web_spectrum));
         }
 
         None
@@ -1331,9 +1338,10 @@ impl EditProcessor for SouthAmericanJungleEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::south_american_jungle()));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::south_american_jungle())))
+            return Some(process_evenly(source_image, web_spectrum));
         }
 
         None
@@ -1402,9 +1410,10 @@ impl EditProcessor for EuropeanIslandsEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::european_islands()));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::european_islands())))
+            return Some(process_evenly(source_image, web_spectrum));
         }
 
         None
@@ -1473,9 +1482,10 @@ impl EditProcessor for ColorfulIslandsEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::colorful_islands()));
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, get_1d_spectrums_for_pallet(&pallets::colorful_islands())))
+            return Some(process_evenly(source_image, web_spectrum));
         }
 
         None
