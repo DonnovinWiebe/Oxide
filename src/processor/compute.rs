@@ -1,7 +1,6 @@
 use image::{DynamicImage, GenericImageView, ImageBuffer, Pixel, Rgb};
 use rayon::iter::IntoParallelIterator;
 use wgpu::util::DeviceExt;
-use crate::processor::pallet::{get_closest_color, get_closest_color_biased};
 use rayon::prelude::*;
 
 

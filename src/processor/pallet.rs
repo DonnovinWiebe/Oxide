@@ -12,17 +12,15 @@ use rayon::prelude::*;
 use crate::ui::render_loading;
 
 /// Gets the standard distance difference used to define whether two colors are in the same or different color regions.
+/// Greater differentiation -> colors need to be further apart in 3d color space to be considered different colors.
 fn color_region_differentiation() -> f32 { 8.0 }
 
 /// Gets the standard multiplier to determine what is considered an accent color (applied to color_region_differentiation()).
+/// Greater multiplier -> accent colors need to be further from their greyscale equivalents to be considered accent colors.
 fn accent_color_multiplier() -> f32 { 1.5 }
-
 
 /// Gets the max size a pallet can be.
 fn max_pallet_size() -> usize { 50000 }
-
-/// Gets the standard bias for biased colorizing.
-fn standard_bias() -> f32 { 1.5 }
 
 /// Gets the standard step count required to catch all colors between any two different colors.
 fn interpolation_steps() -> usize { 442 }
@@ -126,49 +124,6 @@ fn get_distance(color_1: &Rgb<u8>, color_2: &Rgb<u8>, bias: &Option<f32>) -> f32
     let b = ((color_1[2] as f32 - color_2[2] as f32).abs() * 0.114) / bias.unwrap_or(1.0);
 
     (r.powi(2) + g.powi(2) + b.powi(2)).sqrt()
-}
-
-/// Returns the closest color from a given pallet to a given color.
-pub fn get_closest_color(pallet: &Vec<Rgb<u8>>, color: &Rgb<u8>) -> Rgb<u8> {
-    if pallet.is_empty() { return color.clone(); }
-
-    let mut closest_color = pallet[0];
-    let mut closest_distance = get_distance(color, &closest_color, &None);
-
-    for &palette_color in &pallet[1..] {
-        let distance = get_distance(color, &palette_color, &None);
-        if distance < closest_distance {
-            closest_distance = distance;
-            closest_color = palette_color;
-        }
-    }
-
-    closest_color
-}
-
-/// Returns the closest color from a given pallet to a given color.
-pub fn get_closest_color_biased(biased_pallet: &Vec<Rgb<u8>>, standard_pallet: &Vec<Rgb<u8>>, color: &Rgb<u8>) -> Rgb<u8> {
-    if biased_pallet.is_empty() || biased_pallet.is_empty() { return color.clone(); }
-
-    let mut closest_color = biased_pallet[0];
-    let mut closest_distance = get_distance(color, &closest_color, &Some(standard_bias()));
-
-    for &biased_color in &biased_pallet[1..] {
-        let distance = get_distance(color, &biased_color, &Some(standard_bias()));
-        if distance < closest_distance {
-            closest_distance = distance;
-            closest_color = biased_color;
-        }
-    }
-    for &standard_color in &standard_pallet[0..] {
-        let distance = get_distance(color, &standard_color, &None);
-        if distance < closest_distance {
-            closest_distance = distance;
-            closest_color = standard_color;
-        }
-    }
-
-    closest_color
 }
 
 /// Gets all the colors between two other colors.

@@ -35,9 +35,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     for (var i = 0u; i < biased_pallet_length; i++) {
         let color = unpack(biased_pallet[i]);
 
-        let r_value = (pixel.x - color.x) * 0.299 / 1.5;
-        let g_value = (pixel.y - color.y) * 0.587 / 1.5;
-        let b_value = (pixel.z - color.z) * 0.114 / 1.5;
+        let r_value = (pixel.x - color.x) * 0.299 / 0.625;
+        let g_value = (pixel.y - color.y) * 0.587 / 0.625;
+        let b_value = (pixel.z - color.z) * 0.114 / 0.625;
         let distance = sqrt((r_value * r_value) + (g_value * g_value) + (b_value * b_value));
 
         if (distance < closest_biased_color_distance) {
