@@ -76,8 +76,8 @@ fn condense_color_pallet(pallet: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
     if pallet.len() < max_pallet_size() { return pallet; }
 
     // sets up tracking variables
-    let mut similar_color_threshold = 0.0;
-    let mut current_reduction_iteration = 0;
+    let mut similar_color_threshold: u8 = 2;
+    let mut current_reduction_iteration: usize = 0;
     // the condensed pallet being built
     let mut condensed_pallet = pallet.clone();
     // continues iterating until the pallet is small enough
@@ -87,22 +87,19 @@ fn condense_color_pallet(pallet: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
         if current_reduction_iteration > 50 { panic!("Failed to condense pallet in 1000 passes. Max size: {} Got: {}", max_pallet_size(), condensed_pallet.len()); }
 
         // increments the similar_color_threshold with each iteration
-        similar_color_threshold += 1.0;
+        similar_color_threshold += 1;
         // creates a new condensed pallet at the current threshold
         let mut new_condensed_pallet = Vec::new();
-        for color in &condensed_pallet {
-            let mut already_added = false;
-            for condensed_color in &new_condensed_pallet {
-                if get_distance(&color, condensed_color, &None) < similar_color_threshold {
-                    already_added = true;
-                    break;
-                }
-            }
-            if !already_added { new_condensed_pallet.push(color.clone()); }
+        for color in &pallet {
+            new_condensed_pallet.push(Rgb([
+                (color[0] / similar_color_threshold) * similar_color_threshold + (similar_color_threshold / 2),
+                (color[1] / similar_color_threshold) * similar_color_threshold + (similar_color_threshold / 2),
+                (color[2] / similar_color_threshold) * similar_color_threshold + (similar_color_threshold / 2)
+            ]));
         }
 
         // updates the condensed pallet
-        condensed_pallet = new_condensed_pallet;
+        condensed_pallet = remove_duplicates_unordered(new_condensed_pallet);
     }
 
     // returns the condensed pallet
