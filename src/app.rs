@@ -222,11 +222,8 @@ impl App {
                                 Processors::Bichromatic => {
                                     self.selected_processor = Some(Box::new(BichromaticEdit::new(self.selected_image_path.clone().unwrap())));
                                 }
-                                Processors::BichromaticBlend => {
-                                    self.selected_processor = Some(Box::new(BichromaticBlendEdit::new(self.selected_image_path.clone().unwrap())));
-                                }
-                                Processors::BichromaticBlendWithAccent => {
-                                    self.selected_processor = Some(Box::new(BichromaticBlendWithAccentEdit::new(self.selected_image_path.clone().unwrap())));
+                                Processors::BichromaticWithAccent => {
+                                    self.selected_processor = Some(Box::new(BichromaticWithAccentEdit::new(self.selected_image_path.clone().unwrap())));
                                 }
                                 Processors::Trichromatic => {
                                     self.selected_processor = Some(Box::new(TrichromaticEdit::new(self.selected_image_path.clone().unwrap())));
@@ -302,10 +299,9 @@ impl App {
 
                                     let name = self.selected_image_path.clone().unwrap().file_stem().unwrap().to_string_lossy().to_string();
                                     let extension = self.selected_image_path.clone().unwrap().extension().unwrap().to_string_lossy().to_string();
-                                    let filename = format!("{} {} {}.{}",
+                                    let filename = format!("{} {}.{}",
                                                            name,
-                                                           Processors::get_processor(self.current_processor_selection).name(),
-                                                           processor.get_color_set(),
+                                                           processor.get_descriptor(Processors::get_processor(self.current_processor_selection).name()),
                                                            extension
                                     );
                                     let output_path = output_directory.join(filename);

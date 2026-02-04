@@ -22,8 +22,7 @@ pub enum Processors {
     AutomaticMonochromatic,
     AutomaticMonochromaticWithAccent,
     Bichromatic,
-    BichromaticBlend,
-    BichromaticBlendWithAccent,
+    BichromaticWithAccent,
     Trichromatic,
     VolcanicCrater,
     RedRocks,
@@ -40,29 +39,28 @@ impl Processors {
     /// Returns the name of a given processor type.
     pub fn name(&self) -> String {
         match self {
-            Processors::Monochromatic => "Monochromatic".to_string(),
-            Processors::AutomaticMonochromatic => "Automatic Monochromatic".to_string(),
+            Processors::Monochromatic =>                    "Monochromatic".to_string(),
+            Processors::AutomaticMonochromatic =>           "Automatic Monochromatic".to_string(),
             Processors::AutomaticMonochromaticWithAccent => "Automatic Monochromatic with Accent".to_string(),
-            Processors::Bichromatic => "Bichromatic".to_string(),
-            Processors::BichromaticBlend => "Bichromatic Blend".to_string(),
-            Processors::BichromaticBlendWithAccent => "Bichromatic Blend with Accent".to_string(),
-            Processors::Trichromatic => "Trichromatic".to_string(),
-            Processors::VolcanicCrater => "Volcanic Crater".to_string(),
-            Processors::RedRocks => "Red Rocks".to_string(),
-            Processors::DeepestAfrica => "Deepest Africa".to_string(),
-            Processors::ArcticWilderness => "Arctic Wilderness".to_string(),
-            Processors::Iceland => "Iceland".to_string(),
-            Processors::EnglishOaks => "English Oaks".to_string(),
-            Processors::WheatField => "Wheat Field".to_string(),
-            Processors::SouthAmericanJungle => "South American Jungle".to_string(),
-            Processors::EuropeanIslands => "European Islands".to_string(),
-            Processors::ColorfulIslands => "Colorful Islands".to_string(),
+            Processors::Bichromatic =>                      "Bichromatic".to_string(),
+            Processors::BichromaticWithAccent =>            "Bichromatic with Accent".to_string(),
+            Processors::Trichromatic =>                     "Trichromatic".to_string(),
+            Processors::VolcanicCrater =>                   "Volcanic Crater".to_string(),
+            Processors::RedRocks =>                         "Red Rocks".to_string(),
+            Processors::DeepestAfrica =>                    "Deepest Africa".to_string(),
+            Processors::ArcticWilderness =>                 "Arctic Wilderness".to_string(),
+            Processors::Iceland =>                          "Iceland".to_string(),
+            Processors::EnglishOaks =>                      "English Oaks".to_string(),
+            Processors::WheatField =>                       "Wheat Field".to_string(),
+            Processors::SouthAmericanJungle =>              "South American Jungle".to_string(),
+            Processors::EuropeanIslands =>                  "European Islands".to_string(),
+            Processors::ColorfulIslands =>                  "Colorful Islands".to_string(),
 
         }
     }
 
     /// Returns the number of available processors.
-    pub fn number_of_processors() -> usize { 17 }
+    pub fn number_of_processors() -> usize { 16 }
 
     /// Gets the processor type that corresponds to a given index.
     pub fn get_processor(selection: usize) -> Processors {
@@ -71,19 +69,18 @@ impl Processors {
             1 => Processors::AutomaticMonochromatic,
             2 => Processors::AutomaticMonochromaticWithAccent,
             3 => Processors::Bichromatic,
-            4 => Processors::BichromaticBlend,
-            5 => Processors::BichromaticBlendWithAccent,
-            6 => Processors::Trichromatic,
-            7 => Processors::VolcanicCrater,
-            8 => Processors::RedRocks,
-            9 => Processors::DeepestAfrica,
-            10 => Processors::ArcticWilderness,
-            11 => Processors::Iceland,
-            12 => Processors::EnglishOaks,
-            13 => Processors::WheatField,
-            14 => Processors::SouthAmericanJungle,
-            15 => Processors::EuropeanIslands,
-            16 => Processors::ColorfulIslands,
+            4 => Processors::BichromaticWithAccent,
+            5 => Processors::Trichromatic,
+            6 => Processors::VolcanicCrater,
+            7 => Processors::RedRocks,
+            8 => Processors::DeepestAfrica,
+            9 => Processors::ArcticWilderness,
+            10 => Processors::Iceland,
+            11 => Processors::EnglishOaks,
+            12 => Processors::WheatField,
+            13 => Processors::SouthAmericanJungle,
+            14 => Processors::EuropeanIslands,
+            15 => Processors::ColorfulIslands,
             _ => panic!("Invalid processor selection: {}", selection),
         }
     }
@@ -94,7 +91,7 @@ impl Processors {
 /// Defines an image processor.
 pub trait EditProcessor {
     /// Returns the set of colors used in editing the image in order to print them in the editing image filename
-    fn get_color_set(&self) -> String;
+    fn get_descriptor(&self, name: String) -> String;
 
     /// Returns the input type of the current step.
     fn get_current_step_type(&self) -> ProcessingStepTypes;
@@ -151,8 +148,8 @@ impl MonochromaticEdit {
     }
 }
 impl EditProcessor for MonochromaticEdit {
-    fn get_color_set(&self) -> String {
-        format!("{}", self.base_color_hex.clone())
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{} {}", name, self.base_color_hex.clone())
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -198,7 +195,8 @@ impl EditProcessor for MonochromaticEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let spectrum = get_line_spectrum(&self.base_color_rgb);
+            let mut spectrum = get_line_spectrum(&self.base_color_rgb);
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -210,80 +208,7 @@ impl EditProcessor for MonochromaticEdit {
 
 
 
-/// Processes an image into a single color spectrum.
-pub struct AutomaticMonochromaticWithAccentEdit {
-    /// The path of the original image to be processed.
-    source_image_path: PathBuf,
-    /// The steps used to create the processor.
-    guide: ProcessingGuide,
-    /// Tracks if the processor is ready.
-    is_ready: bool,
-}
-impl AutomaticMonochromaticWithAccentEdit {
-    /// Returns a new processor ready to be set up.
-    pub fn new(source_image_path: PathBuf) -> AutomaticMonochromaticWithAccentEdit {
-        AutomaticMonochromaticWithAccentEdit {
-            source_image_path,
-            guide: ProcessingGuide::new(vec![
-                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
-            ]),
-            is_ready: false,
-        }
-    }
-}
-impl EditProcessor for AutomaticMonochromaticWithAccentEdit {
-    fn get_color_set(&self) -> String { // todo get the automatic color selection
-        "Pallet with Accent".to_string()
-    }
-
-    fn get_current_step_type(&self) -> ProcessingStepTypes {
-        self.guide.get_current_step_type()
-    }
-
-    fn get_current_step_label(&self) -> String {
-        self.guide.get_current_label()
-    }
-
-    fn get_current_step_input(&self) -> String {
-        self.guide.get_current_input()
-    }
-
-    fn update_current_step_input(&mut self, new_input: String) {
-        self.guide.update_current_input(new_input)
-    }
-
-    fn is_current_step_input_valid(&self) -> bool {
-        self.guide.is_current_input_valid()
-    }
-
-    fn try_finish_current_step(&mut self) {
-        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
-    }
-
-    fn try_populate(&mut self) {
-        self.is_ready = true;
-    }
-
-    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
-        if !self.is_ready { return None; }
-
-        let source_image_result = image::open(self.source_image_path.clone());
-        if let Ok(source_image) = source_image_result {
-            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let base_spectrum = get_line_spectrum(&get_average_color_from_image(&source_image));
-            let accent_spectrum = get_line_spectrum(&get_accent_color(&source_image));
-
-            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_biased(source_image, base_spectrum, accent_spectrum))
-        }
-
-        None
-    }
-}
-
-
-
-/// Processes an image into a single color spectrum.
+/// Processes an image into a single color spectrum automatically.
 pub struct AutomaticMonochromaticEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -305,8 +230,8 @@ impl AutomaticMonochromaticEdit {
     }
 }
 impl EditProcessor for AutomaticMonochromaticEdit {
-    fn get_color_set(&self) -> String { // todo get the automatic color selection
-        "Pallet".to_string()
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{}", name)
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -343,7 +268,8 @@ impl EditProcessor for AutomaticMonochromaticEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let spectrum = get_line_spectrum(&get_average_color_from_image(&source_image));
+            let mut spectrum = get_line_spectrum(&get_average_color_from_image(&source_image));
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -355,7 +281,82 @@ impl EditProcessor for AutomaticMonochromaticEdit {
 
 
 
-/// Processes an image into two color spectrums.
+/// Processes an image into a single color spectrum with an accent color spectrum automatically.
+pub struct AutomaticMonochromaticWithAccentEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl AutomaticMonochromaticWithAccentEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> AutomaticMonochromaticWithAccentEdit {
+        AutomaticMonochromaticWithAccentEdit {
+            source_image_path,
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::NoInput, "Press Enter".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for AutomaticMonochromaticWithAccentEdit {
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{}", name)
+    }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let mut base_spectrum = get_line_spectrum(&get_average_color_from_image(&source_image));
+            base_spectrum = condense_color_pallet(&base_spectrum);
+            let mut accent_spectrum = get_line_spectrum(&get_accent_color(&source_image));
+            accent_spectrum = condense_color_pallet(&accent_spectrum);
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_biased(source_image, base_spectrum, accent_spectrum))
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image into a two-color spectrum blend.
 pub struct BichromaticEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -390,8 +391,8 @@ impl BichromaticEdit {
     }
 }
 impl EditProcessor for BichromaticEdit {
-    fn get_color_set(&self) -> String {
-        format!("{}-{}", self.base_color_1_hex.clone(), self.base_color_2_hex.clone())
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{} {}-{}", name, self.base_color_1_hex.clone(), self.base_color_2_hex.clone())
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -443,109 +444,10 @@ impl EditProcessor for BichromaticEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_line_spectrum(&self.base_color_1_rgb);
-            spectrum.extend(get_line_spectrum(&self.base_color_2_rgb));
-            spectrum = remove_duplicates_unordered(spectrum);
-
-            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, spectrum))
-        }
-
-        None
-    }
-}
-
-
-
-/// Processes an image into a two-color spectrum blend.
-pub struct BichromaticBlendEdit {
-    /// The path of the original image to be processed.
-    source_image_path: PathBuf,
-    /// The first base color of the spectrum being used as a hex value.
-    pub base_color_1_hex: String,
-    /// The first base color of the spectrum being used as an rgb color.
-    pub base_color_1_rgb: Rgb<u8>,
-    /// The second base color of the spectrum being used as a hex value.
-    pub base_color_2_hex: String,
-    /// The second base color of the spectrum being used as an rgb color.
-    pub base_color_2_rgb: Rgb<u8>,
-    /// The steps used to create the processor.
-    pub guide: ProcessingGuide,
-    /// Tracks if the processor is ready.
-    is_ready: bool,
-}
-impl BichromaticBlendEdit {
-    /// Returns a new processor ready to be set up.
-    pub fn new(source_image_path: PathBuf) -> BichromaticBlendEdit {
-        BichromaticBlendEdit {
-            source_image_path,
-            base_color_1_rgb: Rgb([0, 0, 0]),
-            base_color_1_hex: "none".to_string(),
-            base_color_2_rgb: Rgb([0, 0, 0]),
-            base_color_2_hex: "none".to_string(),
-            guide: ProcessingGuide::new(vec![
-                ProcessingStep::new(ProcessingStepTypes::Color, "Base Color 1 (HEX)".to_string()),
-                ProcessingStep::new(ProcessingStepTypes::Color, "Base Color 2 (HEX)".to_string()),
-            ]),
-            is_ready: false,
-        }
-    }
-}
-impl EditProcessor for BichromaticBlendEdit {
-    fn get_color_set(&self) -> String {
-        format!("{}-{} Blend", self.base_color_1_hex.clone(), self.base_color_2_hex.clone())
-    }
-
-    fn get_current_step_type(&self) -> ProcessingStepTypes {
-        self.guide.get_current_step_type()
-    }
-
-    fn get_current_step_label(&self) -> String {
-        self.guide.get_current_label()
-    }
-
-    fn get_current_step_input(&self) -> String {
-        self.guide.get_current_input()
-    }
-
-    fn update_current_step_input(&mut self, new_input: String) {
-        self.guide.update_current_input(new_input)
-    }
-
-    fn is_current_step_input_valid(&self) -> bool {
-        self.guide.is_current_input_valid()
-    }
-
-    fn try_finish_current_step(&mut self) {
-        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
-    }
-
-    fn try_populate(&mut self) {
-        if !self.guide.is_ready() { return; }
-
-        let base_color_hex_1_result = self.guide.steps[0].as_hex();
-        let base_color_hex_2_result = self.guide.steps[1].as_hex();
-        if base_color_hex_1_result.is_some() {
-            self.base_color_1_hex = base_color_hex_1_result.unwrap();
-            self.base_color_1_rgb = as_rgb(&self.base_color_1_hex).unwrap();
-        }
-        else { return; }
-        if base_color_hex_2_result.is_some() {
-            self.base_color_2_hex = base_color_hex_2_result.unwrap();
-            self.base_color_2_rgb = as_rgb(&self.base_color_2_hex).unwrap();
-        }
-        else { return; }
-
-        self.is_ready = true;
-    }
-
-    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
-        if !self.is_ready { return None; }
-
-        let source_image_result = image::open(self.source_image_path.clone());
-        if let Ok(source_image) = source_image_result {
-            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let spectrum = get_plane_spectrum(&get_line_spectrum(&self.base_color_1_rgb), &get_line_spectrum(&self.base_color_2_rgb));
+            let line_spectrum_1 = get_line_spectrum(&self.base_color_1_rgb);
+            let line_spectrum_2 = get_line_spectrum(&self.base_color_2_rgb);
+            let mut spectrum = get_plane_spectrum(&line_spectrum_1, &line_spectrum_2);
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -558,7 +460,7 @@ impl EditProcessor for BichromaticBlendEdit {
 
 
 /// Processes an image into a two-color spectrum blend with an accent color spectrum.
-pub struct BichromaticBlendWithAccentEdit {
+pub struct BichromaticWithAccentEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
     /// The first base color of the spectrum being used as a hex value.
@@ -574,10 +476,10 @@ pub struct BichromaticBlendWithAccentEdit {
     /// Tracks if the processor is ready.
     is_ready: bool,
 }
-impl BichromaticBlendWithAccentEdit {
+impl BichromaticWithAccentEdit {
     /// Returns a new processor ready to be set up.
-    pub fn new(source_image_path: PathBuf) -> BichromaticBlendWithAccentEdit {
-        BichromaticBlendWithAccentEdit {
+    pub fn new(source_image_path: PathBuf) -> BichromaticWithAccentEdit {
+        BichromaticWithAccentEdit {
             source_image_path,
             base_color_1_rgb: Rgb([0, 0, 0]),
             base_color_1_hex: "none".to_string(),
@@ -591,9 +493,9 @@ impl BichromaticBlendWithAccentEdit {
         }
     }
 }
-impl EditProcessor for BichromaticBlendWithAccentEdit {
-    fn get_color_set(&self) -> String {
-        format!("{}-{} Blend with", self.base_color_1_hex.clone(), self.base_color_2_hex.clone())
+impl EditProcessor for BichromaticWithAccentEdit {
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{} {}-{}", name, self.base_color_1_hex.clone(), self.base_color_2_hex.clone())
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -645,8 +547,10 @@ impl EditProcessor for BichromaticBlendWithAccentEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let base_spectrum = get_plane_spectrum(&get_line_spectrum(&self.base_color_1_rgb), &get_line_spectrum(&self.base_color_2_rgb));
-            let accent_spectrum = get_line_spectrum(&get_accent_color(&source_image));
+            let mut base_spectrum = get_plane_spectrum(&get_line_spectrum(&self.base_color_1_rgb), &get_line_spectrum(&self.base_color_2_rgb));
+            base_spectrum = condense_color_pallet(&base_spectrum);
+            let mut accent_spectrum = get_line_spectrum(&get_accent_color(&source_image));
+            accent_spectrum = condense_color_pallet(&accent_spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_biased(source_image, base_spectrum, accent_spectrum))
@@ -658,7 +562,7 @@ impl EditProcessor for BichromaticBlendWithAccentEdit {
 
 
 
-/// Processes an image into three color spectrums.
+/// Processes an image into a three-color spectrum blend.
 pub struct TrichromaticEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -700,8 +604,8 @@ impl TrichromaticEdit {
     }
 }
 impl EditProcessor for TrichromaticEdit {
-    fn get_color_set(&self) -> String {
-        format!("{}-{}-{}", self.base_color_1_hex.clone(), self.base_color_2_hex.clone(), self.base_color_3_hex.clone())
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{} {}-{}-{}", name, self.base_color_1_hex.clone(), self.base_color_2_hex.clone(), self.base_color_3_hex.clone())
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -759,10 +663,11 @@ impl EditProcessor for TrichromaticEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_line_spectrum(&self.base_color_1_rgb);
-            spectrum.extend(get_line_spectrum(&self.base_color_2_rgb));
-            spectrum.extend(get_line_spectrum(&self.base_color_3_rgb));
-            spectrum = remove_duplicates_unordered(spectrum);
+            let line_spectrum_1 = get_line_spectrum(&self.base_color_1_rgb);
+            let line_spectrum_2 = get_line_spectrum(&self.base_color_2_rgb);
+            let line_spectrum_3 = get_line_spectrum(&self.base_color_3_rgb);
+            let mut spectrum = get_web_spectrum(&vec![line_spectrum_1, line_spectrum_2, line_spectrum_3]);
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -796,8 +701,8 @@ impl VolcanicCraterEdit {
     }
 }
 impl EditProcessor for VolcanicCraterEdit {
-    fn get_color_set(&self) -> String {
-        "Pallet".to_string()
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{}", name)
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -868,8 +773,8 @@ impl RedRocksEdit {
     }
 }
 impl EditProcessor for RedRocksEdit {
-    fn get_color_set(&self) -> String {
-        "Pallet".to_string()
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{}", name)
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -940,8 +845,8 @@ impl DeepestAfricaEdit {
     }
 }
 impl EditProcessor for DeepestAfricaEdit {
-    fn get_color_set(&self) -> String {
-        "Pallet".to_string()
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{}", name)
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -1012,8 +917,8 @@ impl ArcticWildernessEdit {
     }
 }
 impl EditProcessor for ArcticWildernessEdit {
-    fn get_color_set(&self) -> String {
-        "Pallet".to_string()
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{}", name)
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -1084,8 +989,8 @@ impl IcelandEdit {
     }
 }
 impl EditProcessor for IcelandEdit {
-    fn get_color_set(&self) -> String {
-        "Pallet".to_string()
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{}", name)
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -1156,8 +1061,8 @@ impl EnglishOaksEdit {
     }
 }
 impl EditProcessor for EnglishOaksEdit {
-    fn get_color_set(&self) -> String {
-        "Pallet".to_string()
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{}", name)
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -1228,8 +1133,8 @@ impl WheatFieldEdit {
     }
 }
 impl EditProcessor for WheatFieldEdit {
-    fn get_color_set(&self) -> String {
-        "Pallet".to_string()
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{}", name)
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -1300,8 +1205,8 @@ impl SouthAmericanJungleEdit {
     }
 }
 impl EditProcessor for SouthAmericanJungleEdit {
-    fn get_color_set(&self) -> String {
-        "Pallet".to_string()
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{}", name)
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -1372,8 +1277,8 @@ impl EuropeanIslandsEdit {
     }
 }
 impl EditProcessor for EuropeanIslandsEdit {
-    fn get_color_set(&self) -> String {
-        "Pallet".to_string()
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{}", name)
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {
@@ -1444,8 +1349,8 @@ impl ColorfulIslandsEdit {
     }
 }
 impl EditProcessor for ColorfulIslandsEdit {
-    fn get_color_set(&self) -> String {
-        "Pallet".to_string()
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{}", name)
     }
 
     fn get_current_step_type(&self) -> ProcessingStepTypes {

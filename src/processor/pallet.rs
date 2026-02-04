@@ -70,7 +70,7 @@ pub fn as_rgb(hex: &String) -> Option<Rgb<u8>> {
 }
 
 /// Reduces the pallet size to be used efficiently.
-fn condense_color_pallet(pallet: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
+pub fn condense_color_pallet(pallet: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
     // checks if the pallet is already small enough
     let pallet = remove_duplicates_unordered(pallet.clone());
     if pallet.len() < max_pallet_size() { return pallet; }
@@ -113,7 +113,7 @@ fn remove_duplicates_ordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>) -> V
 }
 
 /// Removes duplicate colors from a given list of colors without maintaining the original order.
-pub fn remove_duplicates_unordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>) -> Vec<T> {
+fn remove_duplicates_unordered<T: Eq + std::hash::Hash + Clone>(data: Vec<T>) -> Vec<T> {
     let set: HashSet<_> = data.into_iter().collect();
     set.into_iter().collect()
 }
@@ -245,7 +245,7 @@ pub fn get_web_spectrum(line_spectrums: &Vec<Vec<Rgb<u8>>>) -> Vec<Rgb<u8>> {
         }
     }
 
-    condense_color_pallet(&spectrum)
+    remove_duplicates_unordered(spectrum)
 }
 
 /// Gets the average color from an image.
@@ -442,7 +442,7 @@ impl AccentMap {
         let x = (new_color[0] / 8) as usize;
         let y = (new_color[1] / 8) as usize;
         let z = (new_color[2] / 8) as usize;
-        self.map[x][y][z] += 1.0 + (1.0 / (distance_from_average / 442.0));
+        self.map[x][y][z] += distance_from_average;
 
         if self.map[x][y][z] > self.greatest_accent_score {
             self.greatest_accent_score = self.map[x][y][z];
