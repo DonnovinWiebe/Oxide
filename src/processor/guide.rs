@@ -35,7 +35,7 @@ impl ProcessingGuide {
     pub fn new(steps: Vec<ProcessingStep>) -> ProcessingGuide {
         ProcessingGuide { steps, current_step: 0 }
     }
-    
+
     /// Returns the input type of the current step.
     pub fn get_current_step_type(&self) -> ProcessingStepTypes {
         self.steps[self.current_step].step_type.clone()
@@ -53,6 +53,7 @@ impl ProcessingGuide {
 
     /// Updates the input of the current step.
     pub fn update_current_input(&mut self, new_input: String) {
+        if self.steps[self.current_step].step_type == ProcessingStepTypes::NoInput { return; }
         self.steps[self.current_step].input = new_input;
     }
 
