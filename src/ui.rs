@@ -229,7 +229,6 @@ impl Instruction {
                 Instruction::in_groups(vec![
                     Instruction::confirm_instruction(),
                     Instruction::reset_instruction(),
-                    Instruction::quit_instruction(),
                 ], 4)
             }
             Pages::Finished => {
