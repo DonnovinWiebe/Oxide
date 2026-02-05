@@ -21,11 +21,11 @@ Pre-Configured Palettes: Colorizes images using pre-configured color palettes.
 
 ## Installation
 Just head over to the release page and download the binary for your platform from the latest release!
-After that I recommend placing the binary in it's own directory as it creates source and output folders wherever it is.
+After that I recommend placing the binary in its own directory as it creates source and output folders wherever it is.
 ```
 .
 ├─ binary
 ├─ source
 └─ output
 ```
-When these folders are created, simply place any images (jpg/jpeg and png) you want to edit in the source folder and re-launch the app or press reset [ESC] to populate the source image list. From there any image in the source directory can be edited by following the in-app instructions.
+When these folders are created, simply place any images (jpg/jpeg/png) you want to edit in the source folder and re-launch the app or press the reset button [ESC] to re-populate the source image list. From there any image in the source directory can be edited by following the in-app instructions.
