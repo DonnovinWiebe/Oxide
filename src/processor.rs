@@ -739,10 +739,11 @@ impl EditProcessor for VolcanicCraterEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::volcanic_crater()));
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::volcanic_crater()));
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, web_spectrum));
+            return Some(process_evenly(source_image, spectrum));
         }
 
         None
@@ -811,10 +812,11 @@ impl EditProcessor for RedRocksEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::red_rocks()));
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::red_rocks()));
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, web_spectrum));
+            return Some(process_evenly(source_image, spectrum));
         }
 
         None
@@ -883,10 +885,11 @@ impl EditProcessor for DeepestAfricaEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::deepest_africa()));
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::deepest_africa()));
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, web_spectrum));
+            return Some(process_evenly(source_image, spectrum));
         }
 
         None
@@ -955,10 +958,11 @@ impl EditProcessor for ArcticWildernessEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::arctic_wilderness()));
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::arctic_wilderness()));
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, web_spectrum));
+            return Some(process_evenly(source_image, spectrum));
         }
 
         None
@@ -1027,10 +1031,11 @@ impl EditProcessor for IcelandEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::iceland()));
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::iceland()));
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, web_spectrum));
+            return Some(process_evenly(source_image, spectrum));
         }
 
         None
@@ -1099,10 +1104,11 @@ impl EditProcessor for EnglishOaksEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::english_oaks()));
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::english_oaks()));
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, web_spectrum));
+            return Some(process_evenly(source_image, spectrum));
         }
 
         None
@@ -1171,10 +1177,11 @@ impl EditProcessor for WheatFieldEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::wheat_field()));
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::wheat_field()));
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, web_spectrum));
+            return Some(process_evenly(source_image, spectrum));
         }
 
         None
@@ -1243,10 +1250,11 @@ impl EditProcessor for SouthAmericanJungleEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::south_american_jungle()));
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::south_american_jungle()));
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, web_spectrum));
+            return Some(process_evenly(source_image, spectrum));
         }
 
         None
@@ -1315,10 +1323,11 @@ impl EditProcessor for EuropeanIslandsEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::european_islands()));
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::european_islands()));
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, web_spectrum));
+            return Some(process_evenly(source_image, spectrum));
         }
 
         None
@@ -1387,10 +1396,11 @@ impl EditProcessor for ColorfulIslandsEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let web_spectrum = get_web_spectrum(&get_line_spectrums(&pallets::colorful_islands()));
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::colorful_islands()));
+            spectrum = condense_color_pallet(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
-            return Some(process_evenly(source_image, web_spectrum));
+            return Some(process_evenly(source_image, spectrum));
         }
 
         None
