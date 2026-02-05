@@ -1,4 +1,4 @@
-use crate::processor::pallet::*;
+use crate::processor::palette::*;
 
 
 

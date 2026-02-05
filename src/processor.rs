@@ -1,5 +1,5 @@
 pub mod guide;
-pub mod pallet;
+pub mod palette;
 mod compute;
 
 use std::cell::RefCell;
@@ -13,7 +13,7 @@ use ratatui::Terminal;
 use rayon::prelude::*;
 use crate::processor::compute::*;
 use crate::processor::guide::*;
-use crate::processor::pallet::*;
+use crate::processor::palette::*;
 use crate::ui::*;
 
 /// The list of available processors.
@@ -196,7 +196,7 @@ impl EditProcessor for MonochromaticEdit {
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let mut spectrum = get_line_spectrum(&self.base_color_rgb);
-            spectrum = condense_color_pallet(&spectrum);
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -269,7 +269,7 @@ impl EditProcessor for AutomaticMonochromaticEdit {
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let mut spectrum = get_line_spectrum(&get_average_color_from_image(&source_image));
-            spectrum = condense_color_pallet(&spectrum);
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -342,9 +342,9 @@ impl EditProcessor for AutomaticMonochromaticWithAccentEdit {
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let mut base_spectrum = get_line_spectrum(&get_average_color_from_image(&source_image));
-            base_spectrum = condense_color_pallet(&base_spectrum);
+            base_spectrum = condense_color_palette(&base_spectrum);
             let mut accent_spectrum = get_line_spectrum(&get_accent_color(&source_image));
-            accent_spectrum = condense_color_pallet(&accent_spectrum);
+            accent_spectrum = condense_color_palette(&accent_spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_biased(source_image, base_spectrum, accent_spectrum))
@@ -447,7 +447,7 @@ impl EditProcessor for BichromaticEdit {
             let line_spectrum_1 = get_line_spectrum(&self.base_color_1_rgb);
             let line_spectrum_2 = get_line_spectrum(&self.base_color_2_rgb);
             let mut spectrum = get_plane_spectrum(&line_spectrum_1, &line_spectrum_2);
-            spectrum = condense_color_pallet(&spectrum);
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -548,9 +548,9 @@ impl EditProcessor for BichromaticWithAccentEdit {
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
             let mut base_spectrum = get_plane_spectrum(&get_line_spectrum(&self.base_color_1_rgb), &get_line_spectrum(&self.base_color_2_rgb));
-            base_spectrum = condense_color_pallet(&base_spectrum);
+            base_spectrum = condense_color_palette(&base_spectrum);
             let mut accent_spectrum = get_line_spectrum(&get_accent_color(&source_image));
-            accent_spectrum = condense_color_pallet(&accent_spectrum);
+            accent_spectrum = condense_color_palette(&accent_spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_biased(source_image, base_spectrum, accent_spectrum))
@@ -667,7 +667,7 @@ impl EditProcessor for TrichromaticEdit {
             let line_spectrum_2 = get_line_spectrum(&self.base_color_2_rgb);
             let line_spectrum_3 = get_line_spectrum(&self.base_color_3_rgb);
             let mut spectrum = get_web_spectrum(&vec![line_spectrum_1, line_spectrum_2, line_spectrum_3]);
-            spectrum = condense_color_pallet(&spectrum);
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
@@ -679,7 +679,7 @@ impl EditProcessor for TrichromaticEdit {
 
 
 
-/// Processes an image with a volcanic crater themed pallet.
+/// Processes an image with a volcanic crater themed palette.
 pub struct VolcanicCraterEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -739,8 +739,8 @@ impl EditProcessor for VolcanicCraterEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::volcanic_crater()));
-            spectrum = condense_color_pallet(&spectrum);
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&palettes::volcanic_crater()));
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum));
@@ -752,7 +752,7 @@ impl EditProcessor for VolcanicCraterEdit {
 
 
 
-/// Processes an image with a red rocks themed pallet.
+/// Processes an image with a red rocks themed palette.
 pub struct RedRocksEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -812,8 +812,8 @@ impl EditProcessor for RedRocksEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::red_rocks()));
-            spectrum = condense_color_pallet(&spectrum);
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&palettes::red_rocks()));
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum));
@@ -825,7 +825,7 @@ impl EditProcessor for RedRocksEdit {
 
 
 
-/// Processes an image with a deepest africa themed pallet.
+/// Processes an image with a deepest africa themed palette.
 pub struct DeepestAfricaEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -885,8 +885,8 @@ impl EditProcessor for DeepestAfricaEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::deepest_africa()));
-            spectrum = condense_color_pallet(&spectrum);
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&palettes::deepest_africa()));
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum));
@@ -898,7 +898,7 @@ impl EditProcessor for DeepestAfricaEdit {
 
 
 
-/// Processes an image with an arctic wilderness themed pallet.
+/// Processes an image with an arctic wilderness themed palette.
 pub struct ArcticWildernessEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -958,8 +958,8 @@ impl EditProcessor for ArcticWildernessEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::arctic_wilderness()));
-            spectrum = condense_color_pallet(&spectrum);
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&palettes::arctic_wilderness()));
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum));
@@ -971,7 +971,7 @@ impl EditProcessor for ArcticWildernessEdit {
 
 
 
-/// Processes an image with an iceland themed pallet.
+/// Processes an image with an iceland themed palette.
 pub struct IcelandEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -1031,8 +1031,8 @@ impl EditProcessor for IcelandEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::iceland()));
-            spectrum = condense_color_pallet(&spectrum);
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&palettes::iceland()));
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum));
@@ -1044,7 +1044,7 @@ impl EditProcessor for IcelandEdit {
 
 
 
-/// Processes an image with an english oaks themed pallet.
+/// Processes an image with an english oaks themed palette.
 pub struct EnglishOaksEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -1104,8 +1104,8 @@ impl EditProcessor for EnglishOaksEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::english_oaks()));
-            spectrum = condense_color_pallet(&spectrum);
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&palettes::english_oaks()));
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum));
@@ -1117,7 +1117,7 @@ impl EditProcessor for EnglishOaksEdit {
 
 
 
-/// Processes an image with a wheat field themed pallet.
+/// Processes an image with a wheat field themed palette.
 pub struct WheatFieldEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -1177,8 +1177,8 @@ impl EditProcessor for WheatFieldEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::wheat_field()));
-            spectrum = condense_color_pallet(&spectrum);
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&palettes::wheat_field()));
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum));
@@ -1190,7 +1190,7 @@ impl EditProcessor for WheatFieldEdit {
 
 
 
-/// Processes an image with a south american jungle themed pallet.
+/// Processes an image with a south american jungle themed palette.
 pub struct SouthAmericanJungleEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -1250,8 +1250,8 @@ impl EditProcessor for SouthAmericanJungleEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::south_american_jungle()));
-            spectrum = condense_color_pallet(&spectrum);
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&palettes::south_american_jungle()));
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum));
@@ -1263,7 +1263,7 @@ impl EditProcessor for SouthAmericanJungleEdit {
 
 
 
-/// Processes an image with a european islands themed pallet.
+/// Processes an image with a european islands themed palette.
 pub struct EuropeanIslandsEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -1323,8 +1323,8 @@ impl EditProcessor for EuropeanIslandsEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::european_islands()));
-            spectrum = condense_color_pallet(&spectrum);
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&palettes::european_islands()));
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum));
@@ -1336,7 +1336,7 @@ impl EditProcessor for EuropeanIslandsEdit {
 
 
 
-/// Processes an image with a colorful islands themed pallet.
+/// Processes an image with a colorful islands themed palette.
 pub struct ColorfulIslandsEdit {
     /// The path of the original image to be processed.
     source_image_path: PathBuf,
@@ -1396,8 +1396,8 @@ impl EditProcessor for ColorfulIslandsEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut spectrum = get_web_spectrum(&get_line_spectrums(&pallets::colorful_islands()));
-            spectrum = condense_color_pallet(&spectrum);
+            let mut spectrum = get_web_spectrum(&get_line_spectrums(&palettes::colorful_islands()));
+            spectrum = condense_color_palette(&spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum));

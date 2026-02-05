@@ -19,8 +19,8 @@ fn color_region_differentiation() -> f32 { 8.0 }
 /// Greater multiplier -> accent colors need to be further from their greyscale equivalents to be considered accent colors.
 fn accent_color_multiplier() -> f32 { 1.5 }
 
-/// Gets the max size a pallet can be.
-fn max_pallet_size() -> usize { 50000 }
+/// Gets the max size a palette can be.
+fn max_palette_size() -> usize { 50000 }
 
 /// Gets the standard step count required to catch all colors between any two different colors.
 fn interpolation_steps() -> usize { 442 }
@@ -67,41 +67,41 @@ pub fn as_rgb(hex: &String) -> Option<Rgb<u8>> {
     Some(Rgb([r, g, b]))
 }
 
-/// Reduces the pallet size to be used efficiently.
-pub fn condense_color_pallet(pallet: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
-    // checks if the pallet is already small enough
-    let pallet = remove_duplicates_unordered(pallet.clone());
-    if pallet.len() < max_pallet_size() { return pallet; }
+/// Reduces the palette size to be used efficiently.
+pub fn condense_color_palette(palette: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
+    // checks if the palette is already small enough
+    let palette = remove_duplicates_unordered(palette.clone());
+    if palette.len() < max_palette_size() { return palette; }
 
     // sets up tracking variables
     let mut similar_color_threshold: u8 = 2;
     let mut current_reduction_iteration: usize = 0;
-    // the condensed pallet being built
-    let mut condensed_pallet = pallet.clone();
-    // continues iterating until the pallet is small enough
-    while condensed_pallet.len() > max_pallet_size() {
-        // checks if the pallet is not being reduced fast enough in order to prevent infinite loops
+    // the condensed palette being built
+    let mut condensed_palette = palette.clone();
+    // continues iterating until the palette is small enough
+    while condensed_palette.len() > max_palette_size() {
+        // checks if the palette is not being reduced fast enough to prevent infinite loops
         current_reduction_iteration += 1;
-        if current_reduction_iteration > 50 { panic!("Failed to condense pallet in 1000 passes. Max size: {} Got: {}", max_pallet_size(), condensed_pallet.len()); }
+        if current_reduction_iteration > 50 { panic!("Failed to condense palette in 1000 passes. Max size: {} Got: {}", max_palette_size(), condensed_palette.len()); }
 
         // increments the similar_color_threshold with each iteration
         similar_color_threshold += 1;
-        // creates a new condensed pallet at the current threshold
-        let mut new_condensed_pallet = Vec::new();
-        for color in &pallet {
-            new_condensed_pallet.push(Rgb([
+        // creates a new condensed palette at the current threshold
+        let mut new_condensed_palette = Vec::new();
+        for color in &palette {
+            new_condensed_palette.push(Rgb([
                 (color[0] / similar_color_threshold) * similar_color_threshold + (similar_color_threshold / 2),
                 (color[1] / similar_color_threshold) * similar_color_threshold + (similar_color_threshold / 2),
                 (color[2] / similar_color_threshold) * similar_color_threshold + (similar_color_threshold / 2)
             ]));
         }
 
-        // updates the condensed pallet
-        condensed_pallet = remove_duplicates_unordered(new_condensed_pallet);
+        // updates the condensed palette
+        condensed_palette = remove_duplicates_unordered(new_condensed_palette);
     }
 
-    // returns the condensed pallet
-    condensed_pallet
+    // returns the condensed palette
+    condensed_palette
 }
 
 /// Removes duplicate colors from a given list of colors while maintaining the original order.
@@ -165,10 +165,10 @@ pub fn get_line_spectrum(color: &Rgb<u8>) -> Vec<Rgb<u8>> {
     spectrum
 }
 
-/// Gets the 1d spectrums for all the colors in a given pallet and returns the results as a single pallet.
-pub fn get_line_spectrums(pallet: &Vec<Rgb<u8>>) -> Vec<Vec<Rgb<u8>>> {
+/// Gets the 1d spectrums for all the colors in a given palette and returns the results as a single palette.
+pub fn get_line_spectrums(palette: &Vec<Rgb<u8>>) -> Vec<Vec<Rgb<u8>>> {
     let mut line_spectrums = Vec::new();
-    pallet.iter().for_each(|color| {
+    palette.iter().for_each(|color| {
         line_spectrums.push(get_line_spectrum(color));
     });
 
@@ -265,7 +265,7 @@ pub fn get_accent_color(image: &DynamicImage) -> Rgb<u8> {
 
 
 
-pub mod pallets {
+pub mod palettes {
     use image::Rgb;
     pub fn volcanic_crater() -> Vec<Rgb<u8>> {
         vec![

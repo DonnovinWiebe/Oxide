@@ -14,14 +14,14 @@ const MAX_DISPATCH: u32 = 65535;
 struct GpuImageInformation {
     width: u32,
     height: u32,
-    biased_pallet_length: u32,
-    standard_pallet_length: u32,
+    biased_palette_length: u32,
+    standard_palette_length: u32,
 }
 impl GpuImageInformation {
-    fn new(width: u32, height: u32, biased_pallet_length: usize, standard_pallet_length: usize) -> GpuImageInformation {
-        let biased_pallet_length = biased_pallet_length as u32;
-        let standard_pallet_length = standard_pallet_length as u32;
-        GpuImageInformation { width, height, biased_pallet_length, standard_pallet_length }
+    fn new(width: u32, height: u32, biased_palette_length: usize, standard_palette_length: usize) -> GpuImageInformation {
+        let biased_palette_length = biased_palette_length as u32;
+        let standard_palette_length = standard_palette_length as u32;
+        GpuImageInformation { width, height, biased_palette_length, standard_palette_length }
     }
 }
 
@@ -55,13 +55,13 @@ impl Gpu {
             .collect()
     }
 
-    pub fn palletize_evenly(&self, width: u32, height: u32, pixels: &Vec<Rgb<u8>>, pallet: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
+    pub fn palettize_evenly(&self, width: u32, height: u32, pixels: &Vec<Rgb<u8>>, palette: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
         // Convert to f32 for GPU
         let u32_pixels: Vec<u32> = Self::colors_as_vec_u32(pixels);
-        let u32_pallet: Vec<u32> = Self::colors_as_vec_u32(pallet);
+        let u32_palette: Vec<u32> = Self::colors_as_vec_u32(palette);
 
         // Create GPU buffers
-        let dimensions = GpuImageInformation::new(width, height, 0, pallet.len());
+        let dimensions = GpuImageInformation::new(width, height, 0, palette.len());
         let dimensions_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Dimensions Buffer"),
             contents: bytemuck::bytes_of(&dimensions),
@@ -74,9 +74,9 @@ impl Gpu {
             usage: wgpu::BufferUsages::STORAGE,
         });
 
-        let pallet_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Pallet Buffer"),
-            contents: bytemuck::cast_slice(&u32_pallet),
+        let palette_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Palette Buffer"),
+            contents: bytemuck::cast_slice(&u32_palette),
             usage: wgpu::BufferUsages::STORAGE,
         });
 
@@ -89,8 +89,8 @@ impl Gpu {
 
         // Load shader
         let shader = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Palletize Evenly"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("palletize_evenly.wgsl").into()),
+            label: Some("Palettize Evenly"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("palettize_evenly.wgsl").into()),
         });
 
         // Create pipeline
@@ -154,7 +154,7 @@ impl Gpu {
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: pallet_buffer.as_entire_binding(),
+                    resource: palette_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
@@ -211,21 +211,21 @@ impl Gpu {
         staging_buffer.unmap();
 
         let new_pixels: Vec<Rgb<u8>> = shader_results.iter().map(|&index| {
-            pallet[index as usize]
+            palette[index as usize]
         }).collect();
         if new_pixels.len() != pixels.len() { panic!("Shader did not produce correct number of pixels. Expected: {} Produced: {}", pixels.len(), new_pixels.len()); }
 
         new_pixels
     }
 
-    pub fn palletize_biased(&self, width: u32, height: u32, pixels: &Vec<Rgb<u8>>, biased_pallet: &Vec<Rgb<u8>>, standard_pallet: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
+    pub fn palettize_biased(&self, width: u32, height: u32, pixels: &Vec<Rgb<u8>>, biased_palette: &Vec<Rgb<u8>>, standard_palette: &Vec<Rgb<u8>>) -> Vec<Rgb<u8>> {
         // Convert to f32 for GPU
         let u32_pixels: Vec<u32> = Self::colors_as_vec_u32(pixels);
-        let u32_biased_pallet: Vec<u32> = Self::colors_as_vec_u32(biased_pallet);
-        let u32_standard_pallet: Vec<u32> = Self::colors_as_vec_u32(standard_pallet);
+        let u32_biased_palette: Vec<u32> = Self::colors_as_vec_u32(biased_palette);
+        let u32_standard_palette: Vec<u32> = Self::colors_as_vec_u32(standard_palette);
 
         // Create GPU buffers
-        let dimensions = GpuImageInformation::new(width, height, biased_pallet.len(), standard_pallet.len());
+        let dimensions = GpuImageInformation::new(width, height, biased_palette.len(), standard_palette.len());
         let dimensions_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Dimensions Buffer"),
             contents: bytemuck::bytes_of(&dimensions),
@@ -238,15 +238,15 @@ impl Gpu {
             usage: wgpu::BufferUsages::STORAGE,
         });
 
-        let biased_pallet_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Biased Pallet Buffer"),
-            contents: bytemuck::cast_slice(&u32_biased_pallet),
+        let biased_palette_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Biased Palette Buffer"),
+            contents: bytemuck::cast_slice(&u32_biased_palette),
             usage: wgpu::BufferUsages::STORAGE,
         });
 
-        let standard_pallet_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Standard Pallet Buffer"),
-            contents: bytemuck::cast_slice(&u32_standard_pallet),
+        let standard_palette_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Standard Palette Buffer"),
+            contents: bytemuck::cast_slice(&u32_standard_palette),
             usage: wgpu::BufferUsages::STORAGE,
         });
 
@@ -259,8 +259,8 @@ impl Gpu {
 
         // Load shader
         let shader = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Palletize Biased"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("palletize_biased.wgsl").into()),
+            label: Some("Palettize Biased"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("palettize_biased.wgsl").into()),
         });
 
         // Create pipeline
@@ -334,11 +334,11 @@ impl Gpu {
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: biased_pallet_buffer.as_entire_binding(),
+                    resource: biased_palette_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
-                    resource: standard_pallet_buffer.as_entire_binding(),
+                    resource: standard_palette_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 4,
@@ -395,8 +395,8 @@ impl Gpu {
         staging_buffer.unmap();
 
         let new_pixels: Vec<Rgb<u8>> = shader_results.iter().map(|&index| {
-            if index >= biased_pallet.len() as u32 { standard_pallet[index as usize - biased_pallet.len()] }
-            else { biased_pallet[index as usize] }
+            if index >= biased_palette.len() as u32 { standard_palette[index as usize - biased_palette.len()] }
+            else { biased_palette[index as usize] }
         }).collect();
         if new_pixels.len() != pixels.len() { panic!("Shader did not produce correct number of pixels. Expected: {} Produced: {}", pixels.len(), new_pixels.len()); }
 
@@ -405,8 +405,8 @@ impl Gpu {
 }
 
 
-/// Evenly processes and image using only the colors in a given pallet.
-pub fn process_evenly(source_image: DynamicImage, pallet: Vec<Rgb<u8>>) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+/// Evenly processes and image using only the colors in a given palette.
+pub fn process_evenly(source_image: DynamicImage, palette: Vec<Rgb<u8>>) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
     // information
     let (width, height) = source_image.dimensions();
     let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
@@ -414,7 +414,7 @@ pub fn process_evenly(source_image: DynamicImage, pallet: Vec<Rgb<u8>>) -> Image
     // editing
     let pixels: Vec<Rgb<u8>> = source_image.pixels().map(|pixel| { pixel.2.to_rgb() }).collect();
     let gpu = Gpu::new();
-    let new_pixels = gpu.palletize_evenly(width, height, &pixels, &pallet);
+    let new_pixels = gpu.palettize_evenly(width, height, &pixels, &palette);
 
     // filling the new image with the new pixels
     for x in 0..new_pixels.len() {
@@ -427,8 +427,8 @@ pub fn process_evenly(source_image: DynamicImage, pallet: Vec<Rgb<u8>>) -> Image
     new_image
 }
 
-/// Processes an image with two pallets with one being preferred.
-pub fn process_biased(source_image: DynamicImage, biased_pallet: Vec<Rgb<u8>>, standard_pallet: Vec<Rgb<u8>>) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+/// Processes an image with two palettes with one being preferred.
+pub fn process_biased(source_image: DynamicImage, biased_palette: Vec<Rgb<u8>>, standard_palette: Vec<Rgb<u8>>) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
     // information
     let (width, height) = source_image.dimensions();
     let mut new_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
@@ -436,7 +436,7 @@ pub fn process_biased(source_image: DynamicImage, biased_pallet: Vec<Rgb<u8>>, s
     // editing
     let pixels: Vec<Rgb<u8>> = source_image.pixels().map(|pixel| { pixel.2.to_rgb() }).collect();
     let gpu = Gpu::new();
-    let new_pixels = gpu.palletize_biased(width, height, &pixels, &biased_pallet, &standard_pallet);
+    let new_pixels = gpu.palettize_biased(width, height, &pixels, &biased_palette, &standard_palette);
 
     // filling the new image with the new pixels
     for x in 0..new_pixels.len() {
