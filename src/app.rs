@@ -213,6 +213,9 @@ impl App {
                                 Processors::Monochromatic => {
                                     self.selected_processor = Some(Box::new(MonochromaticEdit::new(self.selected_image_path.clone().unwrap())));
                                 }
+                                Processors::MonochromaticWithAccent => {
+                                    self.selected_processor = Some(Box::new(MonochromaticWithAccentEdit::new(self.selected_image_path.clone().unwrap())));
+                                }
                                 Processors::AutomaticMonochromatic => {
                                     self.selected_processor = Some(Box::new(AutomaticMonochromaticEdit::new(self.selected_image_path.clone().unwrap())));
                                 }

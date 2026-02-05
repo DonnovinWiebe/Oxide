@@ -19,6 +19,7 @@ use crate::ui::*;
 /// The list of available processors.
 pub enum Processors {
     Monochromatic,
+    MonochromaticWithAccent,
     AutomaticMonochromatic,
     AutomaticMonochromaticWithAccent,
     Bichromatic,
@@ -40,6 +41,7 @@ impl Processors {
     pub fn name(&self) -> String {
         match self {
             Processors::Monochromatic =>                    "Monochromatic".to_string(),
+            Processors::MonochromaticWithAccent =>          "Monochromatic with Accent".to_string(),
             Processors::AutomaticMonochromatic =>           "Automatic Monochromatic".to_string(),
             Processors::AutomaticMonochromaticWithAccent => "Automatic Monochromatic with Accent".to_string(),
             Processors::Bichromatic =>                      "Bichromatic".to_string(),
@@ -60,27 +62,28 @@ impl Processors {
     }
 
     /// Returns the number of available processors.
-    pub fn number_of_processors() -> usize { 16 }
+    pub fn number_of_processors() -> usize { 17 }
 
     /// Gets the processor type that corresponds to a given index.
     pub fn get_processor(selection: usize) -> Processors {
         match selection {
             0 => Processors::Monochromatic,
-            1 => Processors::AutomaticMonochromatic,
-            2 => Processors::AutomaticMonochromaticWithAccent,
-            3 => Processors::Bichromatic,
-            4 => Processors::BichromaticWithAccent,
-            5 => Processors::Trichromatic,
-            6 => Processors::VolcanicCrater,
-            7 => Processors::RedRocks,
-            8 => Processors::DeepestAfrica,
-            9 => Processors::ArcticWilderness,
-            10 => Processors::Iceland,
-            11 => Processors::EnglishOaks,
-            12 => Processors::WheatField,
-            13 => Processors::SouthAmericanJungle,
-            14 => Processors::EuropeanIslands,
-            15 => Processors::ColorfulIslands,
+            1 => Processors::MonochromaticWithAccent,
+            2 => Processors::AutomaticMonochromatic,
+            3 => Processors::AutomaticMonochromaticWithAccent,
+            4 => Processors::Bichromatic,
+            5 => Processors::BichromaticWithAccent,
+            6 => Processors::Trichromatic,
+            7 => Processors::VolcanicCrater,
+            8 => Processors::RedRocks,
+            9 => Processors::DeepestAfrica,
+            10 => Processors::ArcticWilderness,
+            11 => Processors::Iceland,
+            12 => Processors::EnglishOaks,
+            13 => Processors::WheatField,
+            14 => Processors::SouthAmericanJungle,
+            15 => Processors::EuropeanIslands,
+            16 => Processors::ColorfulIslands,
             _ => panic!("Invalid processor selection: {}", selection),
         }
     }
@@ -200,6 +203,96 @@ impl EditProcessor for MonochromaticEdit {
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_evenly(source_image, spectrum))
+        }
+
+        None
+    }
+}
+
+
+
+/// Processes an image into a single color spectrum with an accent color spectrum.
+pub struct MonochromaticWithAccentEdit {
+    /// The path of the original image to be processed.
+    source_image_path: PathBuf,
+    /// The base color of the spectrum being used as a hex value.
+    base_color_hex: String,
+    /// The base color of the spectrum being used as an rgb color.
+    base_color_rgb: Rgb<u8>,
+    /// The steps used to create the processor.
+    guide: ProcessingGuide,
+    /// Tracks if the processor is ready.
+    is_ready: bool,
+}
+impl MonochromaticWithAccentEdit {
+    /// Returns a new processor ready to be set up.
+    pub fn new(source_image_path: PathBuf) -> MonochromaticWithAccentEdit {
+        MonochromaticWithAccentEdit {
+            source_image_path,
+            base_color_rgb: Rgb([0, 0, 0]),
+            base_color_hex: "none".to_string(),
+            guide: ProcessingGuide::new(vec![
+                ProcessingStep::new(ProcessingStepTypes::Color, "Base Color (HEX)".to_string()),
+            ]),
+            is_ready: false,
+        }
+    }
+}
+impl EditProcessor for MonochromaticWithAccentEdit {
+    fn get_descriptor(&self, name: String) -> String {
+        format!("{} {}", name, self.base_color_hex.clone())
+    }
+
+    fn get_current_step_type(&self) -> ProcessingStepTypes {
+        self.guide.get_current_step_type()
+    }
+
+    fn get_current_step_label(&self) -> String {
+        self.guide.get_current_label()
+    }
+
+    fn get_current_step_input(&self) -> String {
+        self.guide.get_current_input()
+    }
+
+    fn update_current_step_input(&mut self, new_input: String) {
+        self.guide.update_current_input(new_input)
+    }
+
+    fn is_current_step_input_valid(&self) -> bool {
+        self.guide.is_current_input_valid()
+    }
+
+    fn try_finish_current_step(&mut self) {
+        if self.is_current_step_input_valid() { self.guide.try_finish_current_step(); }
+    }
+
+    fn try_populate(&mut self) {
+        if !self.guide.is_ready() { return; }
+
+        let base_color_hex_result = self.guide.steps[0].as_hex();
+        if base_color_hex_result.is_some() {
+            self.base_color_hex = base_color_hex_result.unwrap();
+            self.base_color_rgb = as_rgb(&self.base_color_hex).unwrap();
+        }
+        else { return; }
+
+        self.is_ready = true;
+    }
+
+    fn try_process(&self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Option<ImageBuffer<Rgb<u8>, Vec<u8>>> {
+        if !self.is_ready { return None; }
+
+        let source_image_result = image::open(self.source_image_path.clone());
+        if let Ok(source_image) = source_image_result {
+            let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
+            let mut accent_spectrum = get_line_spectrum(&get_accent_color(&source_image));
+            accent_spectrum = condense_color_palette(&accent_spectrum);
+            let mut base_spectrum = get_plane_spectrum(&get_line_spectrum(&self.base_color_rgb), &accent_spectrum);
+            base_spectrum = condense_color_palette(&base_spectrum);
+
+            let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
+            return Some(process_biased(source_image, base_spectrum, accent_spectrum))
         }
 
         None
