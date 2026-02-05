@@ -19,39 +19,13 @@ Colorizes images using three gradients.
 
 Pre-Configured Palettes: Colorizes images using pre-configured color palettes.
 
-## Installation - Prerequisites
-### pkg-config
-Debian/Ubuntu/Mint
-```bash
-sudo apt install pkg-config
-```
-Fedora/RHEL/CentOS
-```bash
-sudo dnf install pkg-config
-```
-Arch
-```bash
-sudo pacman -S pkg-config
-```
-macOS
-```bash
-brew install pkgconf
-```
-Windows
-> Using vcpkg...
-```bash
-vcpkg install pkgconfig
-```
-
-## Installation - Binary
-This is where it gets pretty simple. Just head over to the release page and download the binary for your platform from the latest release!
-
-## Installation - Setup
-It is recommended to place the binary in it's own directory as it creates a source and output wherever it is.
+## Installation
+Just head over to the release page and download the binary for your platform from the latest release!
+After that I recommend placing the binary in it's own directory as it creates source and output folders wherever it is.
 ```
 .
 ├─ binary
 ├─ source
 └─ output
 ```
-When these folders are created, simply place any images (jpg/jpeg and png) you want to edit in the source folder and re-launch the app or press reset [ESC]. From there any image can be edited by following the in-app instructions.
+When these folders are created, simply place any images (jpg/jpeg and png) you want to edit in the source folder and re-launch the app or press reset [ESC] to populate the source image list. From there any image in the source directory can be edited by following the in-app instructions.
