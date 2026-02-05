@@ -19,27 +19,8 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // image source setup
-    let working_directory = std::env::current_dir()?; // the binary/run location
-    let source_directory = working_directory.join("source"); // where the source images are
-    let output_directory = working_directory.join("output"); // where the output images are
-    fs::create_dir_all(&source_directory)?;
-    fs::create_dir_all(&output_directory)?;
-
-    let mut source_image_paths: Vec<PathBuf> = fs::read_dir(&source_directory)?
-        .filter_map(|e| e.ok())
-        .map(|e| e.path())
-        .filter(|p| {
-            p.extension()
-                .and_then(|s| s.to_str())
-                .map(|s| matches!(s.to_lowercase().as_str(), "png" | "jpg" | "jpeg"))
-                .unwrap_or(false)
-        })
-        .collect();
-    source_image_paths.sort();
-
     // app setup
-    let mut app = App::new(source_directory, output_directory, source_image_paths);
+    let mut app = App::new();
 
     // running
     let result = app.run(&mut terminal);

@@ -54,12 +54,18 @@ pub struct App {
 }
 impl App {
     /// Returns a new application state container.
-    pub fn new(source_directory: PathBuf, output_directory: PathBuf, source_image_paths: Vec<PathBuf>) -> App {
+    pub fn new() -> App {
+        let working_directory = std::env::current_dir().expect("Could not get local working directory."); // the binary/run location
+        let source_directory = working_directory.join("source"); // where the source images are
+        let output_directory = working_directory.join("output"); // where the output images are
+        fs::create_dir_all(&source_directory).expect("Could not create source image directory.");
+        fs::create_dir_all(&output_directory).expect("Could not create output image directory.");
+
         let mut app = App {
             current_page: Pages::Launching,
-            source_directory,
-            source_image_paths,
-            output_directory,
+            source_directory: source_directory,
+            source_image_paths: Vec::new(),
+            output_directory: output_directory,
             current_image_path_selection: 0,
             selected_image_path: None,
             current_processor_selection: 0,
@@ -68,8 +74,25 @@ impl App {
             processing_time: Duration::new(0, 0),
         };
 
+        app.source_image_paths = app.collect_source_image_paths();
         app.update_selected_image_path();
         app
+    }
+
+    /// Collects source image paths
+    fn collect_source_image_paths(&mut self) -> Vec<PathBuf> {
+        let mut source_image_paths: Vec<PathBuf> = fs::read_dir(&self.source_directory).expect("Could not read source image directory.")
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| {
+                p.extension()
+                    .and_then(|s| s.to_str())
+                    .map(|s| matches!(s.to_lowercase().as_str(), "png" | "jpg" | "jpeg"))
+                    .unwrap_or(false)
+            })
+            .collect();
+        source_image_paths.sort();
+        source_image_paths
     }
 
     /// Returns the name of the current page.
@@ -144,6 +167,7 @@ impl App {
 
     /// Resets the application to the launching page and resets the state.
     pub fn reset(&mut self) {
+        self.source_image_paths = self.collect_source_image_paths();
         self.current_page = Pages::SelectingImageSource;
         self.current_image_path_selection = 0;
         self.selected_image_path = None;
