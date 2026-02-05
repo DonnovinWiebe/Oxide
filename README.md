@@ -43,29 +43,6 @@ Windows
 vcpkg install pkgconfig
 ```
 
-### libexif
-Debian/Ubuntu/Mint
-```bash
-sudo apt install libexif-dev
-```
-Fedora/RHEL/CentOS
-```bash
-sudo dnf install libexif-devel
-```
-Arch
-```bash
-sudo pacman -S libexif
-```
-macOS
-```bash
-brew install libexif
-```
-Windows
-> Using vcpkg...
-```bash
-vcpkg install libexif
-```
-
 ## Installation - Binary
 This is where it gets pretty simple. Just head over to the release page and download the binary for your platform from the latest release!
 
