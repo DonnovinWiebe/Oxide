@@ -341,10 +341,10 @@ impl EditProcessor for AutomaticMonochromaticWithAccentEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut base_spectrum = get_line_spectrum(&get_average_color_from_image(&source_image));
-            base_spectrum = condense_color_palette(&base_spectrum);
             let mut accent_spectrum = get_line_spectrum(&get_accent_color(&source_image));
             accent_spectrum = condense_color_palette(&accent_spectrum);
+            let mut base_spectrum = get_plane_spectrum(&get_line_spectrum(&get_average_color_from_image(&source_image)), &accent_spectrum);
+            base_spectrum = condense_color_palette(&base_spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_biased(source_image, base_spectrum, accent_spectrum))
@@ -547,10 +547,10 @@ impl EditProcessor for BichromaticWithAccentEdit {
         let source_image_result = image::open(self.source_image_path.clone());
         if let Ok(source_image) = source_image_result {
             let _ = terminal.draw(|frame| render_loading(frame, "Loading colors...".to_string()));
-            let mut base_spectrum = get_plane_spectrum(&get_line_spectrum(&self.base_color_1_rgb), &get_line_spectrum(&self.base_color_2_rgb));
-            base_spectrum = condense_color_palette(&base_spectrum);
             let mut accent_spectrum = get_line_spectrum(&get_accent_color(&source_image));
             accent_spectrum = condense_color_palette(&accent_spectrum);
+            let mut base_spectrum = get_plane_spectrum(&get_line_spectrum(&get_average_color_from_image(&source_image)), &accent_spectrum);
+            base_spectrum = condense_color_palette(&base_spectrum);
 
             let _ = terminal.draw(|frame| render_loading(frame, "Processing...".to_string()));
             return Some(process_biased(source_image, base_spectrum, accent_spectrum))
