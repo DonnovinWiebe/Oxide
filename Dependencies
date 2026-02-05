@@ -1,9 +1,0 @@
-Termianl Dependencies:
-
-pkg-config
-instrustions:
-brew install pkg-config
-
-libexif
-instructions:
-brew install libexif
