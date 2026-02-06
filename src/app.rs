@@ -182,7 +182,6 @@ impl App {
         // running
         loop {
             // rendering
-            terminal.clear()?;
             terminal.draw(|frame| render_current_page(frame, self))?;
 
 

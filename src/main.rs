@@ -3,11 +3,10 @@ mod app;
 mod ui;
 
 use std::io::Result;
-use std::{fs, io};
-use std::path::PathBuf;
+use std::io;
 use ratatui::crossterm::execute;
 use ratatui::crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
-use ratatui::prelude::CrosstermBackend;
+use ratatui::prelude::*;
 use ratatui::Terminal;
 use crate::app::App;
 
